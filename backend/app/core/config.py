@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     frontend_origin: str = Field(default="http://localhost:3000", alias="FRONTEND_ORIGIN")
     database_url: str = Field(alias="DATABASE_URL")
     redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
+    alert_ingestion_queue_key: str = Field(
+        default="georisk:ingestion:alerts",
+        alias="ALERT_INGESTION_QUEUE_KEY",
+    )
 
     jwt_secret_key: str = Field(alias="JWT_SECRET_KEY")
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")

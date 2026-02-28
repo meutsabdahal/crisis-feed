@@ -1,6 +1,7 @@
 from app.schemas.alerts import AlertCreate, AlertRead
 from app.schemas.auth import AuthResponse, AuthUser, LoginRequest, RegisterRequest
 from app.schemas.common import APIError, MessageResponse
+from app.schemas.ingestion import AlertIngestionRequest, IngestionEnqueueResponse
 
 __all__ = [
     "AlertCreate",
@@ -11,4 +12,6 @@ __all__ = [
     "RegisterRequest",
     "APIError",
     "MessageResponse",
+    "AlertIngestionRequest",
+    "IngestionEnqueueResponse",
 ]
