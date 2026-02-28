@@ -1,7 +1,6 @@
 "use client";
 
 import axios from "axios";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,6 @@ import { api } from "@/lib/api";
 import { Alert, AlertCreatedEvent, User } from "@/lib/types";
 
 export default function DashboardPage() {
-    const router = useRouter();
     const [user, setUser] = useState<User | null>(null);
     const [alerts, setAlerts] = useState<Alert[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -20,19 +18,28 @@ export default function DashboardPage() {
         setErrorMessage(null);
 
         try {
-            const [currentUser, latestAlerts] = await Promise.all([api.me(), api.listAlerts(50)]);
-            setUser(currentUser.user);
-            setAlerts(latestAlerts);
-        } catch (error: unknown) {
-            if (axios.isAxiosError(error) && error.response?.status === 401) {
-                router.push("/login");
-                return;
+            const [currentUserResult, latestAlerts] = await Promise.allSettled([
+                api.me({ skipAuthRedirect: true }),
+                api.listAlerts(50, { skipAuthRedirect: true }),
+            ]);
+
+            if (currentUserResult.status === "fulfilled") {
+                setUser(currentUserResult.value.user);
+            } else {
+                setUser(null);
             }
+
+            if (latestAlerts.status === "fulfilled") {
+                setAlerts(latestAlerts.value);
+            } else {
+                setAlerts([]);
+            }
+        } catch (error: unknown) {
             setErrorMessage("Failed to load dashboard data.");
         } finally {
             setIsLoading(false);
         }
-    }, [router]);
+    }, []);
 
     useEffect(() => {
         void loadData();
@@ -72,8 +79,8 @@ export default function DashboardPage() {
         try {
             await api.logout();
         } finally {
-            router.push("/login");
-            router.refresh();
+            setUser(null);
+            await loadData();
         }
     };
 

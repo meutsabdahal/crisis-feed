@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect, s
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.deps import get_admin_user, get_current_user
+from app.api.v1.deps import get_admin_user
 from app.core.security import decode_token
 from app.db.database import get_db_session
 from app.db.redis import build_redis_client, get_redis_client
@@ -23,7 +23,6 @@ alert_service = AlertService()
 @router.get("", response_model=list[AlertRead])
 async def list_alerts(
     limit: int = Query(default=100, ge=1, le=500),
-    _: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db_session),
 ) -> list[AlertRead]:
     alerts = await alert_service.list_alerts(session=session, limit=limit)

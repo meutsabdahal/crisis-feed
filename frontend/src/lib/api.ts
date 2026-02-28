@@ -1,4 +1,5 @@
 import axios, {
+    AxiosRequestConfig,
     AxiosError,
     AxiosInstance,
     AxiosResponse,
@@ -18,6 +19,11 @@ import {
 interface RetriableRequestConfig extends InternalAxiosRequestConfig {
     _retry?: boolean;
     url?: string;
+    skipAuthRedirect?: boolean;
+}
+
+interface ApiRequestConfig extends AxiosRequestConfig {
+    skipAuthRedirect?: boolean;
 }
 
 const DEFAULT_LOCAL_API_PORT = "8000";
@@ -67,7 +73,7 @@ class ApiService {
                         await this.refreshSession();
                         return this.client(originalRequest);
                     } catch (refreshError) {
-                        if (typeof window !== "undefined") {
+                        if (!originalRequest.skipAuthRedirect && typeof window !== "undefined") {
                             window.location.assign("/login");
                         }
                         return Promise.reject(refreshError);
@@ -107,8 +113,8 @@ class ApiService {
         return data;
     }
 
-    async me(): Promise<AuthResponse> {
-        const { data } = await this.client.get<AuthResponse>("/auth/me");
+    async me(config?: ApiRequestConfig): Promise<AuthResponse> {
+        const { data } = await this.client.get<AuthResponse>("/auth/me", config);
         return data;
     }
 
@@ -117,8 +123,8 @@ class ApiService {
         return data;
     }
 
-    async listAlerts(limit = 100): Promise<Alert[]> {
-        const { data } = await this.client.get<Alert[]>("/alerts", { params: { limit } });
+    async listAlerts(limit = 100, config?: ApiRequestConfig): Promise<Alert[]> {
+        const { data } = await this.client.get<Alert[]>("/alerts", { params: { limit }, ...config });
         return data;
     }
 
