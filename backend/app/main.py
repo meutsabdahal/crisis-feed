@@ -51,6 +51,11 @@ app.add_middleware(
 )
 
 
+@app.get("/health")
+async def health() -> dict[str, str]:
+    return {"status": "ok"}
+
+
 @app.get("/api/alerts", response_model=list[AlertResponse])
 async def list_alerts(
     session: AsyncSession = Depends(get_db_session),

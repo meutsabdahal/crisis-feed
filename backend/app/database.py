@@ -1,10 +1,11 @@
+import os
 from collections.abc import AsyncGenerator
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
-DATABASE_PATH = "./crisis_feed.db"
+DATABASE_PATH = os.environ.get("DATABASE_PATH", "./crisis_feed.db")
 
 DATABASE_URL = f"sqlite+aiosqlite:///{DATABASE_PATH}"
 
