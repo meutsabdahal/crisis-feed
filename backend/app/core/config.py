@@ -18,14 +18,14 @@ class Settings(BaseSettings):
     redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
 
     jwt_secret_key: str = Field(alias="JWT_SECRET_KEY")
-    jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 15
-    refresh_token_expire_minutes: int = 60 * 24 * 7
+    jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
+    access_token_expire_minutes: int = Field(default=15, alias="ACCESS_TOKEN_EXPIRE_MINUTES")
+    refresh_token_expire_minutes: int = Field(default=60 * 24 * 7, alias="REFRESH_TOKEN_EXPIRE_MINUTES")
 
-    auth_cookie_name: str = "grm_access_token"
-    refresh_cookie_name: str = "grm_refresh_token"
-    cookie_secure: bool = True
-    cookie_samesite: str = "lax"
+    auth_cookie_name: str = Field(default="grm_access_token", alias="AUTH_COOKIE_NAME")
+    refresh_cookie_name: str = Field(default="grm_refresh_token", alias="REFRESH_COOKIE_NAME")
+    cookie_secure: bool = Field(default=False, alias="COOKIE_SECURE")
+    cookie_samesite: str = Field(default="lax", alias="COOKIE_SAMESITE")
 
 
 @lru_cache(maxsize=1)

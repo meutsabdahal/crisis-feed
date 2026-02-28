@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import Cookie, Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,13 +11,20 @@ from app.models.models import User
 
 
 async def get_current_user(
+    request: Request,
     session: AsyncSession = Depends(get_db_session),
-    access_token: str | None = Cookie(default=None, alias="grm_access_token"),
 ) -> User:
+    settings = get_settings()
+    access_token = request.cookies.get(settings.auth_cookie_name)
+
     if access_token is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required.")
 
-    payload = decode_token(access_token)
+    try:
+        payload = decode_token(access_token)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token.") from exc
+
     if payload.get("type") != "access":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type.")
 
