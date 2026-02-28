@@ -43,9 +43,13 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id", name=op.f("pk_alerts")),
     )
     op.create_index(op.f("ix_alerts_region"), "alerts", ["region"], unique=False)
-    op.create_index(op.f("ix_alerts_severity_level"), "alerts", ["severity_level"], unique=False)
+    op.create_index(
+        op.f("ix_alerts_severity_level"), "alerts", ["severity_level"], unique=False
+    )
     op.create_index(op.f("ix_alerts_timestamp"), "alerts", ["timestamp"], unique=False)
-    op.create_index("ix_alerts_region_timestamp", "alerts", ["region", "timestamp"], unique=False)
+    op.create_index(
+        "ix_alerts_region_timestamp", "alerts", ["region", "timestamp"], unique=False
+    )
     op.create_index(
         "ix_alerts_severity_timestamp",
         "alerts",

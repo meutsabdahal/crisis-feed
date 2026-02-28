@@ -5,7 +5,12 @@ from typing import Any
 
 from fastapi import Request
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from app.core.config import get_settings
 
@@ -32,7 +37,9 @@ def build_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSessio
 
 
 async def get_db_session(request: Request) -> AsyncIterator[AsyncSession]:
-    session_factory: async_sessionmaker[AsyncSession] = request.app.state.session_factory
+    session_factory: async_sessionmaker[AsyncSession] = (
+        request.app.state.session_factory
+    )
     async with session_factory() as session:
         try:
             yield session

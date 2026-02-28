@@ -30,8 +30,12 @@ DESCRIPTIONS = [
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Seed synthetic alerts for local development")
-    parser.add_argument("--count", type=int, default=25, help="Number of alerts to insert")
+    parser = argparse.ArgumentParser(
+        description="Seed synthetic alerts for local development"
+    )
+    parser.add_argument(
+        "--count", type=int, default=25, help="Number of alerts to insert"
+    )
     return parser
 
 

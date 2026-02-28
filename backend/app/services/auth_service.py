@@ -4,14 +4,21 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import create_access_token, create_refresh_token, hash_password, verify_password
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    hash_password,
+    verify_password,
+)
 from app.models.models import User
 from app.schemas.auth import LoginRequest, RegisterRequest
 
 
 class AuthService:
     async def register(self, session: AsyncSession, payload: RegisterRequest) -> User:
-        existing_user = await session.scalar(select(User).where(User.email == payload.email))
+        existing_user = await session.scalar(
+            select(User).where(User.email == payload.email)
+        )
         if existing_user is not None:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -30,7 +37,9 @@ class AuthService:
         await session.refresh(user)
         return user
 
-    async def login(self, session: AsyncSession, payload: LoginRequest) -> tuple[User, str, str]:
+    async def login(
+        self, session: AsyncSession, payload: LoginRequest
+    ) -> tuple[User, str, str]:
         user = await session.scalar(select(User).where(User.email == payload.email))
         if user is None or not verify_password(payload.password, user.hashed_password):
             raise HTTPException(

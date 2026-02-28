@@ -42,7 +42,11 @@ async def create_alert(
     return AlertRead.model_validate(alert)
 
 
-@router.post("/ingest", response_model=IngestionEnqueueResponse, status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "/ingest",
+    response_model=IngestionEnqueueResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
 async def enqueue_alert_ingestion_job(
     payload: AlertIngestionRequest,
     _: User = Depends(get_admin_user),

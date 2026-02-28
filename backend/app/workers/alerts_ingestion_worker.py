@@ -46,7 +46,9 @@ async def handle_failed_job(redis: Redis, job_payload: dict[str, Any]) -> None:
     job_payload["retry_count"] = retry_count
 
     if retry_count <= settings.alert_ingestion_max_retries:
-        await _resolve(redis.rpush(settings.alert_ingestion_queue_key, json.dumps(job_payload)))
+        await _resolve(
+            redis.rpush(settings.alert_ingestion_queue_key, json.dumps(job_payload))
+        )
         LOGGER.warning(
             "Requeued failed ingestion job %s (retry %s/%s)",
             job_payload.get("job_id"),
@@ -74,7 +76,9 @@ async def run_worker() -> None:
 
     try:
         while True:
-            item = await _resolve(redis.blpop([settings.alert_ingestion_queue_key], timeout=5))
+            item = await _resolve(
+                redis.blpop([settings.alert_ingestion_queue_key], timeout=5)
+            )
             if item is None:
                 continue
 

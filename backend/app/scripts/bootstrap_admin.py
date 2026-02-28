@@ -16,8 +16,12 @@ from app.models.models import User
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Create or update an admin user")
     parser.add_argument("--email", default=os.getenv("ADMIN_EMAIL"), help="Admin email")
-    parser.add_argument("--password", default=os.getenv("ADMIN_PASSWORD"), help="Admin password")
-    parser.add_argument("--full-name", default=os.getenv("ADMIN_FULL_NAME"), help="Admin full name")
+    parser.add_argument(
+        "--password", default=os.getenv("ADMIN_PASSWORD"), help="Admin password"
+    )
+    parser.add_argument(
+        "--full-name", default=os.getenv("ADMIN_FULL_NAME"), help="Admin full name"
+    )
     parser.add_argument(
         "--prompt-password",
         action="store_true",
@@ -70,7 +74,9 @@ async def _run() -> int:
         password = getpass.getpass("Admin password: ")
 
     if not isinstance(password, str) or not password.strip():
-        raise SystemExit("Missing admin password. Provide --password, --prompt-password, or ADMIN_PASSWORD.")
+        raise SystemExit(
+            "Missing admin password. Provide --password, --prompt-password, or ADMIN_PASSWORD."
+        )
 
     engine = build_engine()
     session_factory = build_session_factory(engine)

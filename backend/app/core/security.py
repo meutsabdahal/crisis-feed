@@ -8,7 +8,9 @@ from passlib.context import CryptContext
 
 from app.core.config import get_settings
 
-password_context: CryptContext = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
+password_context: CryptContext = CryptContext(
+    schemes=["pbkdf2_sha256"], deprecated="auto"
+)
 
 
 def hash_password(password: str) -> str:
@@ -21,17 +23,25 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def create_access_token(subject: str) -> str:
     settings = get_settings()
-    expire_at = datetime.now(UTC) + timedelta(minutes=settings.access_token_expire_minutes)
+    expire_at = datetime.now(UTC) + timedelta(
+        minutes=settings.access_token_expire_minutes
+    )
     payload: dict[str, Any] = {"sub": subject, "exp": expire_at, "type": "access"}
-    encoded_token = jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    encoded_token = jwt.encode(
+        payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm
+    )
     return cast(str, encoded_token)
 
 
 def create_refresh_token(subject: str) -> str:
     settings = get_settings()
-    expire_at = datetime.now(UTC) + timedelta(minutes=settings.refresh_token_expire_minutes)
+    expire_at = datetime.now(UTC) + timedelta(
+        minutes=settings.refresh_token_expire_minutes
+    )
     payload: dict[str, Any] = {"sub": subject, "exp": expire_at, "type": "refresh"}
-    encoded_token = jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    encoded_token = jwt.encode(
+        payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm
+    )
     return cast(str, encoded_token)
 
 

@@ -1,86 +1,86 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
 
 jobs:
-  backend:
-    name: Backend Checks
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    backend:
+        name: Backend Checks
+        runs-on: ubuntu-latest
+        defaults:
+            run:
+                working-directory: backend
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+            - name: Setup Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: "3.12"
 
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v3
+            - name: Setup uv
+              uses: astral-sh/setup-uv@v3
 
-      - name: Install dependencies
-        run: uv sync --group dev
+            - name: Install dependencies
+              run: uv sync --group dev
 
-      - name: Ruff
-        run: uv run ruff check app
+            - name: Ruff
+              run: uv run ruff check app
 
-      - name: Mypy
-        run: uv run mypy app
+            - name: Mypy
+              run: uv run mypy app
 
-      - name: Compile
-        run: uv run python -m compileall app
+            - name: Compile
+              run: uv run python -m compileall app
 
-      - name: Worker import smoke check
-        env:
-          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/georisk_monitor
-          JWT_SECRET_KEY: ci-test-secret
-        run: uv run python -c "import app.workers.alerts_ingestion_worker"
+            - name: Worker import smoke check
+              env:
+                  DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/georisk_monitor
+                  JWT_SECRET_KEY: ci-test-secret
+              run: uv run python -c "import app.workers.alerts_ingestion_worker"
 
-      - name: Alembic migration smoke check
-        env:
-          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/georisk_monitor
-          JWT_SECRET_KEY: ci-test-secret
-        run: uv run alembic upgrade head --sql > /tmp/alembic.sql
+            - name: Alembic migration smoke check
+              env:
+                  DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/georisk_monitor
+                  JWT_SECRET_KEY: ci-test-secret
+              run: uv run alembic upgrade head --sql > /tmp/alembic.sql
 
-      - name: Tests
-        env:
-          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/georisk_monitor
-          JWT_SECRET_KEY: ci-test-secret
-          COOKIE_SECURE: "false"
-        run: uv run pytest
+            - name: Tests
+              env:
+                  DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/georisk_monitor
+                  JWT_SECRET_KEY: ci-test-secret
+                  COOKIE_SECURE: "false"
+              run: uv run pytest
 
-  frontend:
-    name: Frontend Checks
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    frontend:
+        name: Frontend Checks
+        runs-on: ubuntu-latest
+        defaults:
+            run:
+                working-directory: frontend
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: frontend/package.json
+            - name: Setup Node
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "20"
+                  cache: "npm"
+                  cache-dependency-path: frontend/package.json
 
-      - name: Install dependencies
-        run: npm install
+            - name: Install dependencies
+              run: npm install
 
-      - name: Lint
-        run: npm run lint
+            - name: Lint
+              run: npm run lint
 
-      - name: Typecheck
-        run: npm run typecheck
+            - name: Typecheck
+              run: npm run typecheck
 
-      - name: Build
-        run: npm run build
+            - name: Build
+              run: npm run build

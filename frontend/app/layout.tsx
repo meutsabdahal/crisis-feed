@@ -3,18 +3,18 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "GeoRisk Monitor",
-  description: "Live geopolitical risk intelligence dashboard",
+    title: "GeoRisk Monitor",
+    description: "Live geopolitical risk intelligence dashboard",
 };
 
 type RootLayoutProps = Readonly<{
-  children: ReactNode;
+    children: ReactNode;
 }>;
 
 export default function RootLayout({ children }: RootLayoutProps) {
-  return (
-    <html lang="en">
-      <body>{children}</body>
-    </html>
-  );
+    return (
+        <html lang="en">
+            <body>{children}</body>
+        </html>
+    );
 }

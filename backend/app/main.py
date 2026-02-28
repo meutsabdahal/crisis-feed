@@ -51,7 +51,13 @@ def create_app() -> FastAPI:
         allow_origins=[settings.frontend_origin],
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"],
+        allow_headers=[
+            "Authorization",
+            "Content-Type",
+            "Accept",
+            "Origin",
+            "X-Requested-With",
+        ],
     )
     app.add_middleware(RequestContextMiddleware)
 
@@ -79,7 +85,9 @@ def register_exception_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(SQLAlchemyError)
-    async def sqlalchemy_exception_handler(_: Request, exc: SQLAlchemyError) -> JSONResponse:
+    async def sqlalchemy_exception_handler(
+        _: Request, exc: SQLAlchemyError
+    ) -> JSONResponse:
         LOGGER.exception("Database operation failed", exc_info=exc)
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

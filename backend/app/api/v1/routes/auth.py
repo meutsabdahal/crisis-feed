@@ -16,7 +16,9 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 auth_service = AuthService()
 
 
-def _set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
+def _set_auth_cookies(
+    response: Response, access_token: str, refresh_token: str
+) -> None:
     settings = get_settings()
     access_cookie_name, refresh_cookie_name = get_cookie_names()
 
@@ -44,11 +46,23 @@ def _set_auth_cookies(response: Response, access_token: str, refresh_token: str)
 def _clear_auth_cookies(response: Response) -> None:
     settings = get_settings()
     access_cookie_name, refresh_cookie_name = get_cookie_names()
-    response.delete_cookie(access_cookie_name, path="/", secure=settings.cookie_secure, samesite=settings.cookie_samesite)
-    response.delete_cookie(refresh_cookie_name, path="/", secure=settings.cookie_secure, samesite=settings.cookie_samesite)
+    response.delete_cookie(
+        access_cookie_name,
+        path="/",
+        secure=settings.cookie_secure,
+        samesite=settings.cookie_samesite,
+    )
+    response.delete_cookie(
+        refresh_cookie_name,
+        path="/",
+        secure=settings.cookie_secure,
+        samesite=settings.cookie_samesite,
+    )
 
 
-@router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED
+)
 async def register(
     payload: RegisterRequest,
     session: AsyncSession = Depends(get_db_session),
@@ -63,7 +77,9 @@ async def login(
     response: Response,
     session: AsyncSession = Depends(get_db_session),
 ) -> AuthResponse:
-    user, access_token, refresh_token = await auth_service.login(session=session, payload=payload)
+    user, access_token, refresh_token = await auth_service.login(
+        session=session, payload=payload
+    )
     _set_auth_cookies(response, access_token, refresh_token)
     return AuthResponse(user=AuthUser.model_validate(user))
 
@@ -75,22 +91,33 @@ async def refresh_session(request: Request, response: Response) -> MessageRespon
     refresh_token: str | None = request.cookies.get(refresh_cookie_name)
 
     if refresh_token is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing refresh token.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing refresh token."
+        )
 
     try:
         payload = decode_token(refresh_token)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token.") from exc
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token."
+        ) from exc
 
     if payload.get("type") != "refresh":
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token type.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token type.",
+        )
 
     subject = payload.get("sub")
     if not isinstance(subject, str):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token."
+        )
 
     access_token = create_access_token(subject=subject)
-    _set_auth_cookies(response=response, access_token=access_token, refresh_token=refresh_token)
+    _set_auth_cookies(
+        response=response, access_token=access_token, refresh_token=refresh_token
+    )
     return MessageResponse(message="Session refreshed.")
 
 

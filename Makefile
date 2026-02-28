@@ -4,7 +4,7 @@ DATABASE_URL ?= postgresql+asyncpg://postgres:postgres@localhost:5432/georisk_mo
 JWT_SECRET_KEY ?= dev-local-secret
 COOKIE_SECURE ?= false
 
-.PHONY: backend worker test-backend lint-backend type-backend seed-alerts migrate migrate-sql dev-backend doctor env-backend env-frontend env-all
+.PHONY: backend frontend worker test-backend lint-backend type-backend seed-alerts migrate migrate-sql dev-backend doctor env-backend env-frontend env-all
 
 doctor:
 	@echo "Checking local prerequisites..."
@@ -26,6 +26,9 @@ env-all: env-backend env-frontend
 backend:
 	DATABASE_URL="$(DATABASE_URL)" JWT_SECRET_KEY="$(JWT_SECRET_KEY)" COOKIE_SECURE="$(COOKIE_SECURE)" \
 	uv run --project backend uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000 --reload
+
+frontend:
+	cd frontend && npm run dev
 
 migrate:
 	cd backend && DATABASE_URL="$(DATABASE_URL)" JWT_SECRET_KEY="$(JWT_SECRET_KEY)" \

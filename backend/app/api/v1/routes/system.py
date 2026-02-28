@@ -32,13 +32,17 @@ async def health_check() -> dict[str, str]:
 
 
 @router.get("/health/db")
-async def database_health_check(session: AsyncSession = Depends(get_db_session)) -> dict[str, Any]:
+async def database_health_check(
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, Any]:
     await session.execute(text("SELECT 1"))
     return {"status": "ok", "database": "reachable"}
 
 
 @router.get("/health/redis")
-async def redis_health_check(redis: Redis = Depends(get_redis_client)) -> dict[str, Any]:
+async def redis_health_check(
+    redis: Redis = Depends(get_redis_client),
+) -> dict[str, Any]:
     await redis.ping()
     return {"status": "ok", "redis": "reachable"}
 
@@ -54,7 +58,9 @@ async def system_metrics(
     await redis.ping()
 
     ingestion_depth = await _resolve(redis.llen(settings.alert_ingestion_queue_key))
-    dead_letter_depth = await _resolve(redis.llen(settings.alert_ingestion_dead_letter_queue_key))
+    dead_letter_depth = await _resolve(
+        redis.llen(settings.alert_ingestion_dead_letter_queue_key)
+    )
 
     return {
         "status": "ok",

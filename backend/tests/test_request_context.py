@@ -18,7 +18,9 @@ def test_request_context_headers_present() -> None:
 def test_request_context_preserves_request_id() -> None:
     app = create_app()
     with TestClient(app) as client:
-        response = client.get("/api/v1/system/health", headers={"x-request-id": "trace-123"})
+        response = client.get(
+            "/api/v1/system/health", headers={"x-request-id": "trace-123"}
+        )
 
     assert response.status_code == 200
     assert response.headers["x-request-id"] == "trace-123"
