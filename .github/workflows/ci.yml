@@ -37,6 +37,12 @@ jobs:
       - name: Compile
         run: uv run python -m compileall app
 
+      - name: Alembic migration smoke check
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/georisk_monitor
+          JWT_SECRET_KEY: ci-test-secret
+        run: uv run alembic upgrade head --sql > /tmp/alembic.sql
+
       - name: Tests
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/georisk_monitor
