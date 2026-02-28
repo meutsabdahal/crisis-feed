@@ -1,10 +1,19 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import { Inter } from "next/font/google";
 import "./globals.css";
+
+const inter = Inter({ subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
     title: "Crisis Feed",
-    description: "Real-time conflict news alert terminal",
+    description: "Real-time conflict news alert stream",
+};
+
+export const viewport: Viewport = {
+    themeColor: "#020617",
+    width: "device-width",
+    initialScale: 1,
 };
 
 type RootLayoutProps = Readonly<{
@@ -13,7 +22,7 @@ type RootLayoutProps = Readonly<{
 
 export default function RootLayout({ children }: RootLayoutProps) {
     return (
-        <html lang="en">
+        <html lang="en" className={inter.className}>
             <body>{children}</body>
         </html>
     );

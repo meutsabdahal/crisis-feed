@@ -126,7 +126,7 @@ def _clean_domain(raw_url: str) -> str:
 
     for prefix in ("www.", "m.", "feeds.", "rss."):
         if lowered.startswith(prefix):
-            lowered = lowered[len(prefix):]
+            lowered = lowered[len(prefix) :]
 
     return lowered
 
@@ -160,7 +160,9 @@ def _resolve_source_name(
     return "Newswire"
 
 
-async def _fetch_feed(client: httpx.AsyncClient, feed_url: str) -> feedparser.FeedParserDict | None:
+async def _fetch_feed(
+    client: httpx.AsyncClient, feed_url: str
+) -> feedparser.FeedParserDict | None:
     """Fetch a single RSS feed, returning the parsed result or None on error."""
     try:
         response = await client.get(feed_url)

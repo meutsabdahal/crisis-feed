@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Script from "next/script";
-import { Globe, Radio, TriangleAlert } from "lucide-react";
+import { Clock, ExternalLink, Globe, Radio, Siren, TriangleAlert } from "lucide-react";
 
 import type { NewsAlert } from "@/lib/types";
 
@@ -34,6 +34,24 @@ function makeExcerpt(description: string | null): string | null {
     return `${description.slice(0, 277)}...`;
 }
 
+function timeAgo(dateString: string): string {
+    const now = Date.now();
+    const then = new Date(dateString).getTime();
+    const diffMs = now - then;
+
+    if (diffMs < 0) return "just now";
+
+    const minutes = Math.floor(diffMs / 60_000);
+    if (minutes < 1) return "just now";
+    if (minutes < 60) return `${minutes}m ago`;
+
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+}
+
 async function getAlerts(): Promise<NewsAlert[]> {
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? DEFAULT_API_BASE_URL;
 
@@ -60,7 +78,6 @@ export default async function HomePage({
     searchParams?: { limit?: string };
 }) {
     const alerts = await getAlerts();
-    const updatedText = new Date().toLocaleTimeString();
     const breakingCount = alerts.filter((item) => item.is_breaking).length;
     const sourcesCount = new Set(alerts.map((item) => formatSourceLabel(item.source))).size;
     const parsedLimit = Number.parseInt(searchParams?.limit ?? `${PAGE_SIZE}`, 10);
@@ -70,83 +87,128 @@ export default async function HomePage({
     const nextLimit = Math.min(visibleCount + PAGE_SIZE, 100);
 
     return (
-        <main className="mx-auto min-h-screen max-w-6xl px-4 py-8 md:px-8">
-            <header className="mb-6 rounded-xl border border-slate-800 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-5 shadow-[0_0_40px_rgba(15,23,42,0.35)]">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                        <h1 className="text-2xl font-semibold tracking-tight text-emerald-400">Crisis Feed</h1>
-                        <p className="mt-1 text-sm text-slate-400">
-                            Live conflict alert stream · auto-refresh every 15s · last update {updatedText}
-                        </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 text-xs">
-                        <span className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-900/80 px-2.5 py-1 text-slate-300">
-                            <Radio className="h-3.5 w-3.5 text-emerald-400" /> {alerts.length} alerts
+        <main className="mx-auto min-h-screen max-w-4xl px-4 py-6 sm:py-10 md:px-6">
+            {/* ---------- Header ---------- */}
+            <header className="mb-8">
+                <div className="flex items-center gap-2.5">
+                    <Siren className="h-6 w-6 text-emerald-400" aria-hidden />
+                    <h1 className="text-xl font-bold tracking-tight text-slate-50 sm:text-2xl">
+                        Crisis Feed
+                    </h1>
+                    <span className="ml-1 inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wider text-emerald-400">
+                        <span className="animate-pulse-dot inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                        Live
+                    </span>
+                </div>
+                <p className="mt-1.5 text-sm text-slate-500">
+                    Real-time conflict alert stream from {sourcesCount} sources
+                </p>
+
+                {/* Stats row */}
+                <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-700/60 bg-slate-800/50 px-3 py-1 text-slate-400">
+                        <Radio className="h-3 w-3 text-emerald-400" aria-hidden />
+                        {alerts.length} alerts
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-700/60 bg-slate-800/50 px-3 py-1 text-slate-400">
+                        <Globe className="h-3 w-3 text-sky-400" aria-hidden />
+                        {sourcesCount} sources
+                    </span>
+                    {breakingCount > 0 ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 font-medium text-red-400">
+                            <TriangleAlert className="h-3 w-3" aria-hidden />
+                            {breakingCount} breaking
                         </span>
-                        <span className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-900/80 px-2.5 py-1 text-slate-300">
-                            <Globe className="h-3.5 w-3.5 text-cyan-400" /> {sourcesCount} sources
-                        </span>
-                        <span className="inline-flex items-center gap-1 rounded-md border border-red-700/70 bg-red-950/40 px-2.5 py-1 text-red-200">
-                            <TriangleAlert className="h-3.5 w-3.5" /> {breakingCount} breaking
-                        </span>
-                    </div>
+                    ) : null}
                 </div>
             </header>
 
+            {/* Auto-refresh */}
             <Script id="feed-auto-refresh" strategy="afterInteractive">
                 {`window.setTimeout(() => window.location.reload(), ${REFRESH_INTERVAL_MS});`}
             </Script>
 
-            <section className="space-y-3">
+            {/* ---------- Feed ---------- */}
+            <section>
                 {alerts.length === 0 ? (
-                    <p className="rounded-md border border-slate-800 bg-slate-900/50 p-4 text-sm text-slate-400">No matching alerts yet.</p>
+                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-700/60 py-20 text-center">
+                        <Radio className="mb-3 h-8 w-8 text-slate-600" aria-hidden />
+                        <p className="text-sm font-medium text-slate-400">No matching alerts yet</p>
+                        <p className="mt-1 text-xs text-slate-600">Feeds are polled every 3 minutes. Check back shortly.</p>
+                    </div>
                 ) : (
-                    visibleAlerts.map((alert) => {
-                        const excerpt = makeExcerpt(alert.description);
-                        return (
-                        <article
-                            key={alert.id}
-                            className={`rounded-lg border p-4 transition-colors hover:border-slate-600 ${alert.is_breaking ? "border-red-600/90 bg-red-950/20" : "border-slate-800 bg-slate-900/40"}`}
-                        >
-                            <div className="mb-2 flex items-center justify-between gap-2">
-                                <span className="text-xs uppercase tracking-[0.16em] text-slate-400">{formatSourceLabel(alert.source)}</span>
-                                <time className="text-xs text-slate-500">{new Date(alert.published_at).toLocaleString()}</time>
-                            </div>
-                            <h2 className="text-base font-semibold leading-snug text-slate-100">{alert.headline}</h2>
-                            {excerpt ? (
-                                <p className="mt-2 text-sm leading-relaxed text-slate-300">{excerpt}</p>
-                            ) : null}
-                            <div className="mt-3 flex items-center gap-3">
-                                {alert.is_breaking ? (
-                                    <span className="rounded border border-red-500/80 bg-red-950/40 px-2 py-0.5 text-xs font-semibold text-red-300">BREAKING</span>
-                                ) : null}
-                                <a
-                                    className="text-xs text-emerald-400 underline-offset-2 hover:underline"
-                                    href={alert.url}
-                                    target="_blank"
-                                    rel="noreferrer"
+                    <div className="divide-y divide-slate-800/70">
+                        {visibleAlerts.map((alert) => {
+                            const excerpt = makeExcerpt(alert.description);
+                            return (
+                                <article
+                                    key={alert.id}
+                                    className={`group relative py-5 first:pt-0 ${alert.is_breaking ? "pl-4 before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:rounded-full before:bg-red-500" : ""}`}
                                 >
-                                    Open source
-                                </a>
-                            </div>
-                        </article>
-                    );
-                    })
+                                    {/* Meta row */}
+                                    <div className="mb-1.5 flex items-center gap-2 text-xs">
+                                        <span className="font-medium uppercase tracking-wide text-slate-500">
+                                            {formatSourceLabel(alert.source)}
+                                        </span>
+                                        <span className="text-slate-700" aria-hidden>&middot;</span>
+                                        <span className="inline-flex items-center gap-1 text-slate-600">
+                                            <Clock className="h-3 w-3" aria-hidden />
+                                            {timeAgo(alert.published_at)}
+                                        </span>
+                                        {alert.is_breaking ? (
+                                            <>
+                                                <span className="text-slate-700" aria-hidden>&middot;</span>
+                                                <span className="rounded bg-red-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-red-400">
+                                                    Breaking
+                                                </span>
+                                            </>
+                                        ) : null}
+                                    </div>
+
+                                    {/* Headline */}
+                                    <h2 className="text-[15px] font-semibold leading-snug text-slate-100 group-hover:text-white">
+                                        {alert.headline}
+                                    </h2>
+
+                                    {/* Description */}
+                                    {excerpt ? (
+                                        <p className="mt-1.5 text-sm leading-relaxed text-slate-400">
+                                            {excerpt}
+                                        </p>
+                                    ) : null}
+
+                                    {/* Link */}
+                                    <a
+                                        className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-emerald-500 transition-colors hover:text-emerald-400"
+                                        href={alert.url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    >
+                                        Read full article
+                                        <ExternalLink className="h-3 w-3" aria-hidden />
+                                    </a>
+                                </article>
+                            );
+                        })}
+                    </div>
                 )}
             </section>
 
+            {/* ---------- Footer / Pagination ---------- */}
             {alerts.length > 0 ? (
-                <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm">
-                    <p className="text-slate-400">Showing {Math.min(visibleCount, alerts.length)} of {alerts.length} alerts</p>
+                <footer className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800/70 pt-5 text-xs text-slate-500">
+                    <p>
+                        Showing {Math.min(visibleCount, alerts.length)} of {alerts.length} alerts
+                    </p>
                     {canLoadMore ? (
                         <Link
                             href={`/?limit=${nextLimit}`}
-                            className="rounded-md border border-slate-700 bg-slate-900/80 px-3 py-1.5 text-slate-200 transition-colors hover:border-slate-500 hover:bg-slate-800"
+                            className="rounded-full border border-slate-700 bg-slate-800/60 px-4 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:border-slate-600 hover:bg-slate-800 hover:text-white"
                         >
                             Load more
                         </Link>
                     ) : null}
-                </div>
+                </footer>
             ) : null}
         </main>
     );

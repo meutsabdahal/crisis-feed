@@ -6,7 +6,19 @@
     color-scheme: dark;
 }
 
+html {
+    scroll-behavior: smooth;
+}
+
 body {
-    @apply bg-black text-slate-100 antialiased;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    @apply bg-slate-950 text-slate-100 antialiased;
+}
+
+/* Pulsing dot animation for live indicator */
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+.animate-pulse-dot {
+    animation: pulse-dot 2s ease-in-out infinite;
 }
