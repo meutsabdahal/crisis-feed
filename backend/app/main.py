@@ -18,6 +18,7 @@ from app.models import NewsAlert
 class AlertResponse(BaseModel):
     id: int
     headline: str
+    description: str | None
     source: str
     url: str
     published_at: datetime
@@ -63,6 +64,7 @@ async def list_alerts(
         AlertResponse(
             id=alert.id,
             headline=alert.headline,
+            description=alert.description,
             source=alert.source,
             url=alert.url,
             published_at=alert.published_at,

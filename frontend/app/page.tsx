@@ -22,6 +22,18 @@ function formatSourceLabel(source: string): string {
     }
 }
 
+function makeExcerpt(description: string | null): string | null {
+    if (!description) {
+        return null;
+    }
+
+    if (description.length <= 280) {
+        return description;
+    }
+
+    return `${description.slice(0, 277)}...`;
+}
+
 export default function HomePage() {
     const [alerts, setAlerts] = useState<NewsAlert[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -115,6 +127,9 @@ export default function HomePage() {
                                 <time className="text-xs text-slate-500">{new Date(alert.published_at).toLocaleString()}</time>
                             </div>
                             <h2 className="text-base font-semibold leading-snug text-slate-100">{alert.headline}</h2>
+                            {makeExcerpt(alert.description) ? (
+                                <p className="mt-2 text-sm leading-relaxed text-slate-300">{makeExcerpt(alert.description)}</p>
+                            ) : null}
                             <div className="mt-3 flex items-center gap-3">
                                 {alert.is_breaking ? (
                                     <span className="rounded border border-red-500/80 bg-red-950/40 px-2 py-0.5 text-xs font-semibold text-red-300">BREAKING</span>

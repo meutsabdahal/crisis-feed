@@ -1,4 +1,6 @@
 import asyncio
+import re
+from html import unescape
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from typing import Any
@@ -79,6 +81,13 @@ def _is_breaking(headline: str) -> bool:
     return any(hint in lowered for hint in BREAKING_HINTS)
 
 
+def _clean_description(raw_text: str) -> str:
+    text = unescape(raw_text)
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
 def _parse_published_at(entry: dict[str, Any]) -> datetime:
     raw_value = entry.get("published") or entry.get("updated")
     if isinstance(raw_value, str):
@@ -95,6 +104,30 @@ async def _alert_exists(session: AsyncSession, url: str) -> bool:
     query = select(NewsAlert.id).where(NewsAlert.url == url)
     result = await session.execute(query)
     return result.scalar_one_or_none() is not None
+
+
+async def _get_alert_by_url(session: AsyncSession, url: str) -> NewsAlert | None:
+    query = select(NewsAlert).where(NewsAlert.url == url)
+    result = await session.execute(query)
+    return result.scalar_one_or_none()
+
+
+def _extract_description(entry: dict[str, Any]) -> str:
+    summary_raw = str(entry.get("summary") or entry.get("description") or "").strip()
+    summary = _clean_description(summary_raw)
+    if summary:
+        return summary
+
+    content = entry.get("content")
+    if isinstance(content, list):
+        for item in content:
+            if isinstance(item, dict):
+                value = str(item.get("value") or "").strip()
+                cleaned = _clean_description(value)
+                if cleaned:
+                    return cleaned
+
+    return ""
 
 
 def _clean_domain(raw_url: str) -> str:
@@ -160,9 +193,7 @@ async def fetch_and_store_alerts() -> int:
                     entry = dict(raw_entry)
                     headline = str(entry.get("title") or "").strip()
                     url = str(entry.get("link") or "").strip()
-                    summary = str(
-                        entry.get("summary") or entry.get("description") or ""
-                    ).strip()
+                    summary = _extract_description(entry)
 
                     if not headline or not url:
                         continue
@@ -170,7 +201,10 @@ async def fetch_and_store_alerts() -> int:
                     if not _text_matches_keywords(f"{headline} {summary} {url}"):
                         continue
 
-                    if await _alert_exists(session, url):
+                    existing_alert = await _get_alert_by_url(session, url)
+                    if existing_alert is not None:
+                        if not existing_alert.description and summary:
+                            existing_alert.description = summary[:4000]
                         continue
 
                     source = _resolve_source_name(
@@ -183,6 +217,7 @@ async def fetch_and_store_alerts() -> int:
                     session.add(
                         NewsAlert(
                             headline=headline,
+                            description=summary[:4000] if summary else None,
                             source=source[:255],
                             url=url[:1024],
                             published_at=_parse_published_at(entry),

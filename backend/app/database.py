@@ -27,6 +27,11 @@ async def init_db() -> None:
         await connection.execute(text("PRAGMA synchronous=NORMAL"))
         await connection.run_sync(Base.metadata.create_all)
 
+        columns = await connection.execute(text("PRAGMA table_info(news_alerts)"))
+        column_names = {str(row[1]) for row in columns.fetchall()}
+        if "description" not in column_names:
+            await connection.execute(text("ALTER TABLE news_alerts ADD COLUMN description VARCHAR(4000)"))
+
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     async with SessionLocal() as session:
