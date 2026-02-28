@@ -145,7 +145,9 @@ def _text_matches_keywords(headline: str, description: str) -> bool:
     combined = f"{headline} {description}".lower()
     headline_lower = headline.lower()
     has_actor = any(keyword in combined for keyword in ACTOR_KEYWORDS)
-    has_conflict_in_headline = any(keyword in headline_lower for keyword in CONFLICT_KEYWORDS)
+    has_conflict_in_headline = any(
+        keyword in headline_lower for keyword in CONFLICT_KEYWORDS
+    )
     return has_actor and has_conflict_in_headline
 
 
