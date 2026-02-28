@@ -1,3 +1,4 @@
+import Link from "next/link";
 import Script from "next/script";
 import { Globe, Radio, TriangleAlert } from "lucide-react";
 
@@ -5,6 +6,7 @@ import type { NewsAlert } from "@/lib/types";
 
 const REFRESH_INTERVAL_MS = 15_000;
 const DEFAULT_API_BASE_URL = "http://127.0.0.1:8000";
+const PAGE_SIZE = 20;
 
 function formatSourceLabel(source: string): string {
     if (!source.startsWith("http")) {
@@ -52,11 +54,20 @@ async function getAlerts(): Promise<NewsAlert[]> {
     }
 }
 
-export default async function HomePage() {
+export default async function HomePage({
+    searchParams,
+}: {
+    searchParams?: { limit?: string };
+}) {
     const alerts = await getAlerts();
     const updatedText = new Date().toLocaleTimeString();
     const breakingCount = alerts.filter((item) => item.is_breaking).length;
     const sourcesCount = new Set(alerts.map((item) => formatSourceLabel(item.source))).size;
+    const parsedLimit = Number.parseInt(searchParams?.limit ?? `${PAGE_SIZE}`, 10);
+    const visibleCount = Number.isNaN(parsedLimit) ? PAGE_SIZE : Math.min(Math.max(parsedLimit, PAGE_SIZE), 100);
+    const visibleAlerts = alerts.slice(0, visibleCount);
+    const canLoadMore = visibleCount < alerts.length;
+    const nextLimit = Math.min(visibleCount + PAGE_SIZE, 100);
 
     return (
         <main className="mx-auto min-h-screen max-w-6xl px-4 py-8 md:px-8">
@@ -90,7 +101,7 @@ export default async function HomePage() {
                 {alerts.length === 0 ? (
                     <p className="rounded-md border border-slate-800 bg-slate-900/50 p-4 text-sm text-slate-400">No matching alerts yet.</p>
                 ) : (
-                    alerts.map((alert) => (
+                    visibleAlerts.map((alert) => (
                         <article
                             key={alert.id}
                             className={`rounded-lg border p-4 transition-colors hover:border-slate-600 ${alert.is_breaking ? "border-red-600/90 bg-red-950/20" : "border-slate-800 bg-slate-900/40"}`}
@@ -120,6 +131,20 @@ export default async function HomePage() {
                     ))
                 )}
             </section>
+
+            {alerts.length > 0 ? (
+                <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm">
+                    <p className="text-slate-400">Showing {Math.min(visibleCount, alerts.length)} of {alerts.length} alerts</p>
+                    {canLoadMore ? (
+                        <Link
+                            href={`/?limit=${nextLimit}`}
+                            className="rounded-md border border-slate-700 bg-slate-900/80 px-3 py-1.5 text-slate-200 transition-colors hover:border-slate-500 hover:bg-slate-800"
+                        >
+                            Load more
+                        </Link>
+                    ) : null}
+                </div>
+            ) : null}
         </main>
     );
 }
