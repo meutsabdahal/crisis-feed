@@ -2,6 +2,7 @@ import asyncio
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from typing import Any
+from urllib.parse import urlparse
 
 import feedparser
 import httpx
@@ -15,7 +16,22 @@ RSS_FEEDS: tuple[str, ...] = (
     "https://feeds.reuters.com/reuters/worldNews",
     "http://rss.cnn.com/rss/edition_world.rss",
     "https://www.aljazeera.com/xml/rss/all.xml",
+    "http://feeds.bbci.co.uk/news/world/rss.xml",
+    "https://feeds.npr.org/1004/rss.xml",
+    "https://www.theguardian.com/world/rss",
+    "https://rss.dw.com/rdf/rss-en-world",
 )
+
+DOMAIN_SOURCE_MAP: dict[str, str] = {
+    "reuters.com": "Reuters",
+    "cnn.com": "CNN",
+    "aljazeera.com": "Al Jazeera",
+    "bbc.co.uk": "BBC",
+    "bbc.com": "BBC",
+    "npr.org": "NPR",
+    "theguardian.com": "The Guardian",
+    "dw.com": "DW",
+}
 
 ACTOR_KEYWORDS: tuple[str, ...] = (
     "u.s.",
@@ -81,6 +97,46 @@ async def _alert_exists(session: AsyncSession, url: str) -> bool:
     return result.scalar_one_or_none() is not None
 
 
+def _clean_domain(raw_url: str) -> str:
+    hostname = urlparse(raw_url).hostname or ""
+    lowered = hostname.lower()
+
+    for prefix in ("www.", "m.", "feeds.", "rss."):
+        if lowered.startswith(prefix):
+            lowered = lowered[len(prefix) :]
+
+    return lowered
+
+
+def _resolve_source_name(
+    entry: dict[str, Any],
+    article_url: str,
+    feed_url: str,
+    feed_title: str,
+) -> str:
+    source_detail = entry.get("source")
+    if isinstance(source_detail, dict):
+        source_title = str(source_detail.get("title") or "").strip()
+        if source_title and "http" not in source_title.lower():
+            return source_title
+
+    for candidate in (article_url, feed_url):
+        domain = _clean_domain(candidate)
+        if not domain:
+            continue
+
+        for known_domain, known_name in DOMAIN_SOURCE_MAP.items():
+            if domain.endswith(known_domain):
+                return known_name
+
+        return domain.replace(".", " ").title()
+
+    if feed_title:
+        return feed_title
+
+    return "Newswire"
+
+
 async def fetch_and_store_alerts() -> int:
     inserted_count = 0
     await init_db()
@@ -98,12 +154,15 @@ async def fetch_and_store_alerts() -> int:
                 entries = (
                     parsed_feed.entries if isinstance(parsed_feed.entries, list) else []
                 )
+                feed_title = str(getattr(parsed_feed.feed, "title", "") or "").strip()
 
                 for raw_entry in entries:
                     entry = dict(raw_entry)
                     headline = str(entry.get("title") or "").strip()
                     url = str(entry.get("link") or "").strip()
-                    summary = str(entry.get("summary") or entry.get("description") or "").strip()
+                    summary = str(
+                        entry.get("summary") or entry.get("description") or ""
+                    ).strip()
 
                     if not headline or not url:
                         continue
@@ -114,11 +173,12 @@ async def fetch_and_store_alerts() -> int:
                     if await _alert_exists(session, url):
                         continue
 
-                    source_detail = entry.get("source")
-                    if isinstance(source_detail, dict):
-                        source = str(source_detail.get("title") or feed_url)
-                    else:
-                        source = feed_url
+                    source = _resolve_source_name(
+                        entry=entry,
+                        article_url=url,
+                        feed_url=feed_url,
+                        feed_title=feed_title,
+                    )
 
                     session.add(
                         NewsAlert(
