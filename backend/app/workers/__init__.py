@@ -1,3 +1,1 @@
-from app.workers.alerts_ingestion_worker import run_worker
-
-__all__ = ["run_worker"]
+"""Background worker modules for GeoRisk Monitor."""
