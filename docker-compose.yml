@@ -40,6 +40,19 @@ services:
       redis:
         condition: service_healthy
 
+  worker:
+    build:
+      context: ./backend
+    env_file:
+      - ./backend/.env.example
+    command: ["python", "-m", "app.workers.alerts_ingestion_worker"]
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   frontend:
     build:
       context: ./frontend
