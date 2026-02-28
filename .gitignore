@@ -32,6 +32,10 @@ uv.lock
 .env.*
 !.env.example
 
+# SQLite
+*.db
+*.sqlite3
+
 # Node / Next.js (frontend)
 frontend/node_modules/
 frontend/.next/

@@ -1,1 +1,0 @@
-"""GeoRisk Monitor backend package."""

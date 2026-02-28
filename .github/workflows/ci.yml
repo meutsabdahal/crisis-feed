@@ -37,24 +37,8 @@ jobs:
             - name: Compile
               run: uv run python -m compileall app
 
-            - name: Worker import smoke check
-              env:
-                  DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/georisk_monitor
-                  JWT_SECRET_KEY: ci-test-secret
-              run: uv run python -c "import app.workers.alerts_ingestion_worker"
-
-            - name: Alembic migration smoke check
-              env:
-                  DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/georisk_monitor
-                  JWT_SECRET_KEY: ci-test-secret
-              run: uv run alembic upgrade head --sql > /tmp/alembic.sql
-
-            - name: Tests
-              env:
-                  DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/georisk_monitor
-                  JWT_SECRET_KEY: ci-test-secret
-                  COOKIE_SECURE: "false"
-              run: uv run pytest
+            - name: Ingestion import smoke check
+              run: uv run python -c "import app.ingestion"
 
     frontend:
         name: Frontend Checks
@@ -71,7 +55,7 @@ jobs:
               with:
                   node-version: "20"
                   cache: "npm"
-                  cache-dependency-path: frontend/package.json
+                  cache-dependency-path: frontend/package-lock.json
 
             - name: Install dependencies
               run: npm install

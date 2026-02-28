@@ -1,59 +1,36 @@
 SHELL := /bin/bash
 
-DATABASE_URL ?= postgresql+asyncpg://postgres:postgres@localhost:5432/georisk_monitor
-JWT_SECRET_KEY ?= dev-local-secret
-COOKIE_SECURE ?= false
+BACKEND_PORT ?= 8000
+FRONTEND_PORT ?= 3000
 
-.PHONY: backend frontend worker test-backend lint-backend type-backend seed-alerts migrate migrate-sql dev-backend doctor env-backend env-frontend env-all
+.PHONY: doctor backend frontend dev lint-backend type-backend lint-frontend type-frontend build-frontend
 
 doctor:
 	@echo "Checking local prerequisites..."
 	@command -v uv >/dev/null 2>&1 && echo "[ok] uv" || (echo "[missing] uv" && exit 1)
-	@command -v docker >/dev/null 2>&1 && echo "[ok] docker" || echo "[warn] docker not found (full stack compose unavailable)"
 	@command -v npm >/dev/null 2>&1 && echo "[ok] npm" || echo "[warn] npm not found (frontend local dev unavailable)"
 	@echo "Done."
 
-env-backend:
-	@test -f backend/.env || cp backend/.env.example backend/.env
-	@echo "backend/.env ready"
-
-env-frontend:
-	@test -f frontend/.env.local || cp frontend/.env.example frontend/.env.local
-	@echo "frontend/.env.local ready"
-
-env-all: env-backend env-frontend
-
 backend:
-	DATABASE_URL="$(DATABASE_URL)" JWT_SECRET_KEY="$(JWT_SECRET_KEY)" COOKIE_SECURE="$(COOKIE_SECURE)" \
-	uv run --project backend uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000 --reload
+	uv run --project backend uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port $(BACKEND_PORT) --reload
 
 frontend:
 	cd frontend && npm run dev
 
-migrate:
-	cd backend && DATABASE_URL="$(DATABASE_URL)" JWT_SECRET_KEY="$(JWT_SECRET_KEY)" \
-	uv run alembic upgrade head
-
-migrate-sql:
-	cd backend && DATABASE_URL="$(DATABASE_URL)" JWT_SECRET_KEY="$(JWT_SECRET_KEY)" \
-	uv run alembic upgrade head --sql > /tmp/georisk_alembic.sql
-
-dev-backend: migrate backend
-
-worker:
-	DATABASE_URL="$(DATABASE_URL)" JWT_SECRET_KEY="$(JWT_SECRET_KEY)" COOKIE_SECURE="$(COOKIE_SECURE)" PYTHONPATH=backend \
-	uv run --project backend python -m app.workers.alerts_ingestion_worker
-
-test-backend:
-	cd backend && DATABASE_URL="$(DATABASE_URL)" JWT_SECRET_KEY="$(JWT_SECRET_KEY)" COOKIE_SECURE="$(COOKIE_SECURE)" \
-	uv run pytest
+dev:
+	@echo "Start backend and frontend in separate terminals: make backend | make frontend"
 
 lint-backend:
-	cd backend && uv run ruff check app tests
+	cd backend && uv run ruff check app
 
 type-backend:
 	cd backend && uv run mypy app
 
-seed-alerts:
-	DATABASE_URL="$(DATABASE_URL)" JWT_SECRET_KEY="$(JWT_SECRET_KEY)" COOKIE_SECURE="$(COOKIE_SECURE)" PYTHONPATH=backend \
-	uv run --project backend python -m app.scripts.seed_alerts --count 25
+lint-frontend:
+	cd frontend && npm run lint
+
+type-frontend:
+	cd frontend && npm run typecheck
+
+build-frontend:
+	cd frontend && npm run build

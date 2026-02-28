@@ -1,106 +1,69 @@
-from __future__ import annotations
+import asyncio
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager, suppress
+from datetime import datetime
 
-import logging
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
-
-from fastapi import FastAPI, HTTPException, Request, status
-from fastapi.exceptions import RequestValidationError
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from sqlalchemy.exc import SQLAlchemyError
+from pydantic import BaseModel
+from sqlalchemy import desc, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1 import api_router
-from app.core.config import get_settings
-from app.core.logging import configure_logging
-from app.core.middleware import RequestContextMiddleware
-from app.db.database import build_engine, build_session_factory
-from app.db.redis import build_redis_client
+from app.database import Base, engine, get_db_session
+from app.ingestion import ingestion_loop
+from app.models import NewsAlert
 
-LOGGER: logging.Logger = logging.getLogger(__name__)
-configure_logging()
+
+class AlertResponse(BaseModel):
+    id: int
+    headline: str
+    source: str
+    url: str
+    published_at: datetime
+    is_breaking: bool
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    # Build infra once at startup for predictable connection pooling behavior in production.
-    app.state.engine = build_engine()
-    app.state.session_factory = build_session_factory(app.state.engine)
-    app.state.redis = build_redis_client()
+async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
 
-    yield
-
-    await app.state.redis.aclose()
-    await app.state.engine.dispose()
-
-
-def create_app() -> FastAPI:
-    settings = get_settings()
-
-    app = FastAPI(
-        title=settings.app_name,
-        version=settings.app_version,
-        docs_url="/docs",
-        redoc_url="/redoc",
-        lifespan=lifespan,
-    )
-
-    app.add_middleware(
-        CORSMiddleware,
-        # Keep origin allowlist explicit to prevent credential leakage to untrusted clients.
-        allow_origins=[settings.frontend_origin],
-        allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=[
-            "Authorization",
-            "Content-Type",
-            "Accept",
-            "Origin",
-            "X-Requested-With",
-        ],
-    )
-    app.add_middleware(RequestContextMiddleware)
-
-    app.include_router(api_router)
-    register_exception_handlers(app)
-    return app
+    task = asyncio.create_task(ingestion_loop())
+    try:
+        yield
+    finally:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
 
 
-def register_exception_handlers(app: FastAPI) -> None:
-    @app.exception_handler(HTTPException)
-    async def http_exception_handler(_: Request, exc: HTTPException) -> JSONResponse:
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={"detail": exc.detail},
+app = FastAPI(title="Crisis Feed API", version="0.1.0", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/api/alerts", response_model=list[AlertResponse])
+async def list_alerts(
+    session: AsyncSession = Depends(get_db_session),
+) -> list[AlertResponse]:
+    query = select(NewsAlert).order_by(desc(NewsAlert.published_at)).limit(100)
+    rows = await session.execute(query)
+    alerts = rows.scalars().all()
+
+    return [
+        AlertResponse(
+            id=alert.id,
+            headline=alert.headline,
+            source=alert.source,
+            url=alert.url,
+            published_at=alert.published_at,
+            is_breaking=alert.is_breaking,
         )
-
-    @app.exception_handler(RequestValidationError)
-    async def request_validation_exception_handler(
-        _: Request,
-        exc: RequestValidationError,
-    ) -> JSONResponse:
-        return JSONResponse(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            content={"detail": "Request validation failed.", "errors": exc.errors()},
-        )
-
-    @app.exception_handler(SQLAlchemyError)
-    async def sqlalchemy_exception_handler(
-        _: Request, exc: SQLAlchemyError
-    ) -> JSONResponse:
-        LOGGER.exception("Database operation failed", exc_info=exc)
-        return JSONResponse(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            content={"detail": "Database service is temporarily unavailable."},
-        )
-
-    @app.exception_handler(Exception)
-    async def unhandled_exception_handler(_: Request, exc: Exception) -> JSONResponse:
-        LOGGER.exception("Unhandled server error", exc_info=exc)
-        return JSONResponse(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"detail": "An unexpected error occurred."},
-        )
-
-
-app = create_app()
+        for alert in alerts
+    ]

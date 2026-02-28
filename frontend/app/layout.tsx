@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-    title: "GeoRisk Monitor",
-    description: "Live geopolitical risk intelligence dashboard",
+    title: "Crisis Feed",
+    description: "Real-time conflict news alert terminal",
 };
 
 type RootLayoutProps = Readonly<{
