@@ -8,7 +8,7 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import SessionLocal
+from app.database import SessionLocal, init_db
 from app.models import NewsAlert
 
 RSS_FEEDS: tuple[str, ...] = (
@@ -17,13 +17,28 @@ RSS_FEEDS: tuple[str, ...] = (
     "https://www.aljazeera.com/xml/rss/all.xml",
 )
 
-KEYWORDS: tuple[str, ...] = (
-    "us",
+ACTOR_KEYWORDS: tuple[str, ...] = (
+    "u.s.",
+    "united states",
+    "us military",
     "iran",
     "israel",
-    "strike",
-    "epic fury",
+    "idf",
+    "tehran",
     "khamenei",
+)
+
+CONFLICT_KEYWORDS: tuple[str, ...] = (
+    "strike",
+    "airstrike",
+    "missile",
+    "drone",
+    "attack",
+    "retaliation",
+    "escalation",
+    "military",
+    "operation epic fury",
+    "epic fury",
 )
 
 BREAKING_HINTS: tuple[str, ...] = (
@@ -38,7 +53,9 @@ POLL_INTERVAL_SECONDS = 180
 
 def _text_matches_keywords(text: str) -> bool:
     lowered = text.lower()
-    return any(keyword in lowered for keyword in KEYWORDS)
+    has_actor = any(keyword in lowered for keyword in ACTOR_KEYWORDS)
+    has_conflict_signal = any(keyword in lowered for keyword in CONFLICT_KEYWORDS)
+    return has_actor and has_conflict_signal
 
 
 def _is_breaking(headline: str) -> bool:
@@ -66,6 +83,7 @@ async def _alert_exists(session: AsyncSession, url: str) -> bool:
 
 async def fetch_and_store_alerts() -> int:
     inserted_count = 0
+    await init_db()
 
     async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
         async with SessionLocal() as session:
@@ -85,11 +103,12 @@ async def fetch_and_store_alerts() -> int:
                     entry = dict(raw_entry)
                     headline = str(entry.get("title") or "").strip()
                     url = str(entry.get("link") or "").strip()
+                    summary = str(entry.get("summary") or entry.get("description") or "").strip()
 
                     if not headline or not url:
                         continue
 
-                    if not _text_matches_keywords(f"{headline} {url}"):
+                    if not _text_matches_keywords(f"{headline} {summary} {url}"):
                         continue
 
                     if await _alert_exists(session, url):
@@ -107,7 +126,7 @@ async def fetch_and_store_alerts() -> int:
                             source=source[:255],
                             url=url[:1024],
                             published_at=_parse_published_at(entry),
-                            is_breaking=_is_breaking(headline),
+                            is_breaking=_is_breaking(f"{headline} {summary}"),
                         )
                     )
                     inserted_count += 1

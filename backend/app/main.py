@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import Base, engine, get_db_session
+from app.database import get_db_session, init_db
 from app.ingestion import ingestion_loop
 from app.models import NewsAlert
 
@@ -25,8 +25,7 @@ class AlertResponse(BaseModel):
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
-    async with engine.begin() as connection:
-        await connection.run_sync(Base.metadata.create_all)
+    await init_db()
 
     task = asyncio.create_task(ingestion_loop())
     try:
