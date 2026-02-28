@@ -37,6 +37,13 @@ jobs:
       - name: Compile
         run: uv run python -m compileall app
 
+      - name: Tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/georisk_monitor
+          JWT_SECRET_KEY: ci-test-secret
+          COOKIE_SECURE: "false"
+        run: uv run pytest
+
   frontend:
     name: Frontend Checks
     runs-on: ubuntu-latest
