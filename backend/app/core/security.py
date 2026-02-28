@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -12,25 +12,27 @@ password_context: CryptContext = CryptContext(schemes=["pbkdf2_sha256"], depreca
 
 
 def hash_password(password: str) -> str:
-    return password_context.hash(password)
+    return cast(str, password_context.hash(password))
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return password_context.verify(plain_password, hashed_password)
+    return cast(bool, password_context.verify(plain_password, hashed_password))
 
 
 def create_access_token(subject: str) -> str:
     settings = get_settings()
     expire_at = datetime.now(UTC) + timedelta(minutes=settings.access_token_expire_minutes)
     payload: dict[str, Any] = {"sub": subject, "exp": expire_at, "type": "access"}
-    return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    encoded_token = jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    return cast(str, encoded_token)
 
 
 def create_refresh_token(subject: str) -> str:
     settings = get_settings()
     expire_at = datetime.now(UTC) + timedelta(minutes=settings.refresh_token_expire_minutes)
     payload: dict[str, Any] = {"sub": subject, "exp": expire_at, "type": "refresh"}
-    return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    encoded_token = jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    return cast(str, encoded_token)
 
 
 def decode_token(token: str) -> dict[str, Any]:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -29,10 +30,13 @@ class Settings(BaseSettings):
     auth_cookie_name: str = Field(default="grm_access_token", alias="AUTH_COOKIE_NAME")
     refresh_cookie_name: str = Field(default="grm_refresh_token", alias="REFRESH_COOKIE_NAME")
     cookie_secure: bool = Field(default=False, alias="COOKIE_SECURE")
-    cookie_samesite: str = Field(default="lax", alias="COOKIE_SAMESITE")
+    cookie_samesite: Literal["lax", "strict", "none"] = Field(
+        default="lax",
+        alias="COOKIE_SAMESITE",
+    )
 
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     # Caching avoids re-parsing env vars on every request and keeps dependency injection cheap.
-    return Settings()
+    return Settings()  # type: ignore[call-arg]

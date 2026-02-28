@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import cast
+
 from fastapi import Request
 from redis.asyncio import Redis
 
@@ -8,7 +10,7 @@ from app.core.config import get_settings
 
 def build_redis_client() -> Redis:
     settings = get_settings()
-    return Redis.from_url(
+    redis_client = Redis.from_url(
         settings.redis_url,
         encoding="utf-8",
         decode_responses=True,
@@ -16,7 +18,8 @@ def build_redis_client() -> Redis:
         socket_timeout=5,
         retry_on_timeout=True,
     )
+    return cast(Redis, redis_client)
 
 
 def get_redis_client(request: Request) -> Redis:
-    return request.app.state.redis
+    return cast(Redis, request.app.state.redis)

@@ -4,7 +4,8 @@ import asyncio
 import json
 import logging
 from datetime import UTC, datetime
-from typing import Any
+from inspect import isawaitable
+from typing import Any, Awaitable, TypeVar, cast
 
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -15,6 +16,13 @@ from app.db.redis import build_redis_client
 from app.models.models import Alert
 
 LOGGER: logging.Logger = logging.getLogger(__name__)
+T = TypeVar("T")
+
+
+async def _resolve(value: Awaitable[T] | T) -> T:
+    if isawaitable(value):
+        return await cast(Awaitable[T], value)
+    return value
 
 
 async def process_job(session: AsyncSession, job_payload: dict[str, Any]) -> None:
@@ -39,7 +47,7 @@ async def run_worker() -> None:
 
     try:
         while True:
-            item = await redis.blpop(settings.alert_ingestion_queue_key, timeout=5)
+            item = await _resolve(redis.blpop([settings.alert_ingestion_queue_key], timeout=5))
             if item is None:
                 continue
 
