@@ -37,6 +37,12 @@ jobs:
       - name: Compile
         run: uv run python -m compileall app
 
+      - name: Worker import smoke check
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/georisk_monitor
+          JWT_SECRET_KEY: ci-test-secret
+        run: uv run python -c "import app.workers.alerts_ingestion_worker"
+
       - name: Alembic migration smoke check
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/georisk_monitor
