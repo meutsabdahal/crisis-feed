@@ -9,9 +9,8 @@ from urllib.parse import urlparse
 import feedparser
 import httpx
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import SessionLocal, init_db
+from app.database import SessionLocal
 from app.models import NewsAlert
 
 RSS_FEEDS: tuple[str, ...] = (
@@ -68,6 +67,9 @@ BREAKING_HINTS: tuple[str, ...] = (
 
 POLL_INTERVAL_SECONDS = 180
 
+_RE_HTML_TAG = re.compile(r"<[^>]+>")
+_RE_WHITESPACE = re.compile(r"\s+")
+
 
 def _text_matches_keywords(text: str) -> bool:
     lowered = text.lower()
@@ -83,8 +85,8 @@ def _is_breaking(headline: str) -> bool:
 
 def _clean_description(raw_text: str) -> str:
     text = unescape(raw_text)
-    text = re.sub(r"<[^>]+>", " ", text)
-    text = re.sub(r"\s+", " ", text).strip()
+    text = _RE_HTML_TAG.sub(" ", text)
+    text = _RE_WHITESPACE.sub(" ", text).strip()
     return text
 
 
@@ -98,18 +100,6 @@ def _parse_published_at(entry: dict[str, Any]) -> datetime:
             pass
 
     return datetime.now(UTC).replace(tzinfo=None)
-
-
-async def _alert_exists(session: AsyncSession, url: str) -> bool:
-    query = select(NewsAlert.id).where(NewsAlert.url == url)
-    result = await session.execute(query)
-    return result.scalar_one_or_none() is not None
-
-
-async def _get_alert_by_url(session: AsyncSession, url: str) -> NewsAlert | None:
-    query = select(NewsAlert).where(NewsAlert.url == url)
-    result = await session.execute(query)
-    return result.scalar_one_or_none()
 
 
 def _extract_description(entry: dict[str, Any]) -> str:
@@ -136,7 +126,7 @@ def _clean_domain(raw_url: str) -> str:
 
     for prefix in ("www.", "m.", "feeds.", "rss."):
         if lowered.startswith(prefix):
-            lowered = lowered[len(prefix) :]
+            lowered = lowered[len(prefix):]
 
     return lowered
 
@@ -170,63 +160,100 @@ def _resolve_source_name(
     return "Newswire"
 
 
+async def _fetch_feed(client: httpx.AsyncClient, feed_url: str) -> feedparser.FeedParserDict | None:
+    """Fetch a single RSS feed, returning the parsed result or None on error."""
+    try:
+        response = await client.get(feed_url)
+        response.raise_for_status()
+    except httpx.HTTPError:
+        return None
+    result: feedparser.FeedParserDict = feedparser.parse(response.text)
+    return result
+
+
 async def fetch_and_store_alerts() -> int:
     inserted_count = 0
-    await init_db()
 
     async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
-        async with SessionLocal() as session:
-            for feed_url in RSS_FEEDS:
-                try:
-                    response = await client.get(feed_url)
-                    response.raise_for_status()
-                except httpx.HTTPError:
+        # Fetch all feeds concurrently
+        results = await asyncio.gather(
+            *(_fetch_feed(client, url) for url in RSS_FEEDS),
+            return_exceptions=True,
+        )
+
+    async with SessionLocal() as session:
+        for feed_url, result in zip(RSS_FEEDS, results, strict=True):
+            if isinstance(result, BaseException) or result is None:
+                continue
+
+            parsed_feed = result
+            entries: list[Any] = (
+                parsed_feed.entries if isinstance(parsed_feed.entries, list) else []
+            )
+            if not entries:
+                continue
+
+            feed_title = str(getattr(parsed_feed.feed, "title", "") or "").strip()
+
+            # Pre-filter entries and collect candidate URLs
+            candidates: list[tuple[dict[str, Any], str, str, str]] = []
+            for raw_entry in entries:
+                entry = dict(raw_entry)
+                headline = str(entry.get("title") or "").strip()
+                url = str(entry.get("link") or "").strip()
+                summary = _extract_description(entry)
+
+                if not headline or not url:
+                    continue
+                if not _text_matches_keywords(f"{headline} {summary} {url}"):
                     continue
 
-                parsed_feed = feedparser.parse(response.text)
-                entries = (
-                    parsed_feed.entries if isinstance(parsed_feed.entries, list) else []
+                candidates.append((entry, headline, url, summary))
+
+            if not candidates:
+                continue
+
+            # Batch-check which URLs already exist
+            candidate_urls = [c[2] for c in candidates]
+            existing_query = select(NewsAlert.url, NewsAlert.description).where(
+                NewsAlert.url.in_(candidate_urls)
+            )
+            existing_rows = await session.execute(existing_query)
+            existing_map: dict[str, str | None] = {
+                str(row[0]): row[1] for row in existing_rows.fetchall()
+            }
+
+            for entry, headline, url, summary in candidates:
+                if url in existing_map:
+                    # Backfill description if missing
+                    if not existing_map[url] and summary:
+                        stmt = select(NewsAlert).where(NewsAlert.url == url)
+                        row = await session.execute(stmt)
+                        alert = row.scalar_one_or_none()
+                        if alert is not None:
+                            alert.description = summary[:4000]
+                    continue
+
+                source = _resolve_source_name(
+                    entry=entry,
+                    article_url=url,
+                    feed_url=feed_url,
+                    feed_title=feed_title,
                 )
-                feed_title = str(getattr(parsed_feed.feed, "title", "") or "").strip()
 
-                for raw_entry in entries:
-                    entry = dict(raw_entry)
-                    headline = str(entry.get("title") or "").strip()
-                    url = str(entry.get("link") or "").strip()
-                    summary = _extract_description(entry)
-
-                    if not headline or not url:
-                        continue
-
-                    if not _text_matches_keywords(f"{headline} {summary} {url}"):
-                        continue
-
-                    existing_alert = await _get_alert_by_url(session, url)
-                    if existing_alert is not None:
-                        if not existing_alert.description and summary:
-                            existing_alert.description = summary[:4000]
-                        continue
-
-                    source = _resolve_source_name(
-                        entry=entry,
-                        article_url=url,
-                        feed_url=feed_url,
-                        feed_title=feed_title,
+                session.add(
+                    NewsAlert(
+                        headline=headline,
+                        description=summary[:4000] if summary else None,
+                        source=source[:255],
+                        url=url[:1024],
+                        published_at=_parse_published_at(entry),
+                        is_breaking=_is_breaking(f"{headline} {summary}"),
                     )
+                )
+                inserted_count += 1
 
-                    session.add(
-                        NewsAlert(
-                            headline=headline,
-                            description=summary[:4000] if summary else None,
-                            source=source[:255],
-                            url=url[:1024],
-                            published_at=_parse_published_at(entry),
-                            is_breaking=_is_breaking(f"{headline} {summary}"),
-                        )
-                    )
-                    inserted_count += 1
-
-            await session.commit()
+        await session.commit()
 
     return inserted_count
 

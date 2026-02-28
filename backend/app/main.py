@@ -5,7 +5,7 @@ from datetime import datetime
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import desc, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +16,8 @@ from app.models import NewsAlert
 
 
 class AlertResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     headline: str
     description: str | None
@@ -60,15 +62,4 @@ async def list_alerts(
     except SQLAlchemyError:
         return []
 
-    return [
-        AlertResponse(
-            id=alert.id,
-            headline=alert.headline,
-            description=alert.description,
-            source=alert.source,
-            url=alert.url,
-            published_at=alert.published_at,
-            is_breaking=alert.is_breaking,
-        )
-        for alert in alerts
-    ]
+    return [AlertResponse.model_validate(alert) for alert in alerts]

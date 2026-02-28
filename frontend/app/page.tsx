@@ -101,7 +101,9 @@ export default async function HomePage({
                 {alerts.length === 0 ? (
                     <p className="rounded-md border border-slate-800 bg-slate-900/50 p-4 text-sm text-slate-400">No matching alerts yet.</p>
                 ) : (
-                    visibleAlerts.map((alert) => (
+                    visibleAlerts.map((alert) => {
+                        const excerpt = makeExcerpt(alert.description);
+                        return (
                         <article
                             key={alert.id}
                             className={`rounded-lg border p-4 transition-colors hover:border-slate-600 ${alert.is_breaking ? "border-red-600/90 bg-red-950/20" : "border-slate-800 bg-slate-900/40"}`}
@@ -111,8 +113,8 @@ export default async function HomePage({
                                 <time className="text-xs text-slate-500">{new Date(alert.published_at).toLocaleString()}</time>
                             </div>
                             <h2 className="text-base font-semibold leading-snug text-slate-100">{alert.headline}</h2>
-                            {makeExcerpt(alert.description) ? (
-                                <p className="mt-2 text-sm leading-relaxed text-slate-300">{makeExcerpt(alert.description)}</p>
+                            {excerpt ? (
+                                <p className="mt-2 text-sm leading-relaxed text-slate-300">{excerpt}</p>
                             ) : null}
                             <div className="mt-3 flex items-center gap-3">
                                 {alert.is_breaking ? (
@@ -128,7 +130,8 @@ export default async function HomePage({
                                 </a>
                             </div>
                         </article>
-                    ))
+                    );
+                    })
                 )}
             </section>
 
