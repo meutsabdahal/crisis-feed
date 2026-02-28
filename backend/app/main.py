@@ -13,6 +13,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.api.v1 import api_router
 from app.core.config import get_settings
 from app.db.database import build_engine, build_session_factory
+from app.db.redis import build_redis_client
 
 LOGGER: logging.Logger = logging.getLogger(__name__)
 
@@ -22,9 +23,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Build infra once at startup for predictable connection pooling behavior in production.
     app.state.engine = build_engine()
     app.state.session_factory = build_session_factory(app.state.engine)
+    app.state.redis = build_redis_client()
 
     yield
 
+    await app.state.redis.aclose()
     await app.state.engine.dispose()
 
 
