@@ -82,8 +82,8 @@ CONFLICT_KEYWORDS: tuple[str, ...] = (
     "drone",
     "attack",
     "retaliation",
+    "retaliate",
     "escalation",
-    "military",
     "operation epic fury",
     "epic fury",
     "war",
@@ -110,8 +110,19 @@ CONFLICT_KEYWORDS: tuple[str, ...] = (
     "naval",
     "warship",
     "intercept",
-    "retaliate",
     "tension",
+    "overthrow",
+    "target",
+    "launch",
+    "hits back",
+    "stealth fighter",
+    "fighter jet",
+    "warplane",
+    "military operation",
+    "military strike",
+    "military offensive",
+    "military action",
+    "military base",
 )
 
 BREAKING_HINTS: tuple[str, ...] = (
@@ -129,11 +140,13 @@ _RE_HTML_TAG = re.compile(r"<[^>]+>")
 _RE_WHITESPACE = re.compile(r"\s+")
 
 
-def _text_matches_keywords(text: str) -> bool:
-    lowered = text.lower()
-    has_actor = any(keyword in lowered for keyword in ACTOR_KEYWORDS)
-    has_conflict_signal = any(keyword in lowered for keyword in CONFLICT_KEYWORDS)
-    return has_actor and has_conflict_signal
+def _text_matches_keywords(headline: str, description: str) -> bool:
+    """Require actor keyword anywhere AND conflict signal in the headline."""
+    combined = f"{headline} {description}".lower()
+    headline_lower = headline.lower()
+    has_actor = any(keyword in combined for keyword in ACTOR_KEYWORDS)
+    has_conflict_in_headline = any(keyword in headline_lower for keyword in CONFLICT_KEYWORDS)
+    return has_actor and has_conflict_in_headline
 
 
 def _is_breaking(headline: str) -> bool:
@@ -270,7 +283,7 @@ async def fetch_and_store_alerts() -> int:
 
                 if not headline or not url:
                     continue
-                if not _text_matches_keywords(f"{headline} {summary} {url}"):
+                if not _text_matches_keywords(headline, summary):
                     continue
 
                 candidates.append((entry, headline, url, summary))
