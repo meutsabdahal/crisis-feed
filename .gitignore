@@ -4,7 +4,7 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Python (root + backend)
+# Python
 __pycache__/
 *.py[cod]
 *.pyo
@@ -17,14 +17,10 @@ __pycache__/
 .ruff_cache/
 .coverage
 htmlcov/
-
-# Virtual environments
 .venv/
 venv/
-env/
 
-# UV / Python tooling
-.python-version
+# UV
 uv.lock
 
 # Environment files
@@ -34,16 +30,13 @@ uv.lock
 
 # SQLite
 *.db
-*.sqlite3
 *.db-wal
 *.db-shm
 
-# Node / Next.js (frontend)
+# Node / Next.js
 frontend/node_modules/
 frontend/.next/
 frontend/out/
-frontend/.turbo/
-frontend/coverage/
 frontend/*.tsbuildinfo
 
 # Logs

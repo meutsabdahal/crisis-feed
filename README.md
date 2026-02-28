@@ -14,6 +14,7 @@ Single table: `news_alerts`
 
 - `id`
 - `headline`
+- `description`
 - `source`
 - `url`
 - `published_at`

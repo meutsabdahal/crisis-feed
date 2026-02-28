@@ -38,4 +38,6 @@ build-frontend:
 clean:
 	rm -rf frontend/.next frontend/tsconfig.tsbuildinfo
 	find backend -type d -name "__pycache__" -prune -exec rm -rf {} +
-	rm -f crisis_feed.db-wal crisis_feed.db-shm backend/crisis_feed.db-wal backend/crisis_feed.db-shm
+	rm -rf backend/.ruff_cache backend/.mypy_cache backend/.pytest_cache
+	rm -f crisis_feed.db crisis_feed.db-wal crisis_feed.db-shm
+	rm -f backend/crisis_feed.db backend/crisis_feed.db-wal backend/crisis_feed.db-shm
