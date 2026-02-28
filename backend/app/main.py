@@ -12,10 +12,13 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.v1 import api_router
 from app.core.config import get_settings
+from app.core.logging import configure_logging
+from app.core.middleware import RequestContextMiddleware
 from app.db.database import build_engine, build_session_factory
 from app.db.redis import build_redis_client
 
 LOGGER: logging.Logger = logging.getLogger(__name__)
+configure_logging()
 
 
 @asynccontextmanager
@@ -50,6 +53,7 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"],
     )
+    app.add_middleware(RequestContextMiddleware)
 
     app.include_router(api_router)
     register_exception_handlers(app)
