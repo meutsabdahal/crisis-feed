@@ -35,6 +35,8 @@ uv.lock
 # SQLite
 *.db
 *.sqlite3
+*.db-wal
+*.db-shm
 
 # Node / Next.js (frontend)
 frontend/node_modules/

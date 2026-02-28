@@ -7,6 +7,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy import desc, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db_session, init_db
@@ -51,9 +52,12 @@ app.add_middleware(
 async def list_alerts(
     session: AsyncSession = Depends(get_db_session),
 ) -> list[AlertResponse]:
-    query = select(NewsAlert).order_by(desc(NewsAlert.published_at)).limit(100)
-    rows = await session.execute(query)
-    alerts = rows.scalars().all()
+    try:
+        query = select(NewsAlert).order_by(desc(NewsAlert.published_at)).limit(100)
+        rows = await session.execute(query)
+        alerts = rows.scalars().all()
+    except SQLAlchemyError:
+        return []
 
     return [
         AlertResponse(
