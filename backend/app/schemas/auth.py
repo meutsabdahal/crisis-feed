@@ -20,6 +20,7 @@ class AuthUser(BaseModel):
     id: int
     email: EmailStr
     full_name: str | None
+    role: str
     is_active: bool
 
 

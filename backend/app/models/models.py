@@ -15,6 +15,7 @@ class User(TimestampMixin, Base):
     email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False, index=True)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    role: Mapped[str] = mapped_column(String(30), default="analyst", nullable=False)
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
 
 

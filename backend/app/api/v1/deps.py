@@ -42,3 +42,12 @@ async def get_current_user(
 def get_cookie_names() -> tuple[str, str]:
     settings = get_settings()
     return settings.auth_cookie_name, settings.refresh_cookie_name
+
+
+async def get_admin_user(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin role required.",
+        )
+    return current_user

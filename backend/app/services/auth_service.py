@@ -22,6 +22,7 @@ class AuthService:
             email=payload.email,
             hashed_password=hash_password(payload.password),
             full_name=payload.full_name,
+            role="analyst",
             is_active=True,
         )
         session.add(user)

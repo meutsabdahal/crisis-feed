@@ -56,3 +56,18 @@ def test_redis_health_endpoint() -> None:
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok", "redis": "reachable"}
+
+
+def test_alert_creation_requires_auth() -> None:
+    with _build_test_client() as client:
+        response = client.post(
+            "/api/v1/alerts",
+            json={
+                "severity_level": "high",
+                "region": "Middle East",
+                "description": "Supply route disruption near major shipping corridor.",
+                "source": "internal-intel",
+            },
+        )
+
+    assert response.status_code == 401

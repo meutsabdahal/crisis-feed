@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.deps import get_current_user
+from app.api.v1.deps import get_admin_user, get_current_user
 from app.db.database import get_db_session
 from app.models.models import User
 from app.schemas.alerts import AlertCreate, AlertRead
@@ -26,7 +26,7 @@ async def list_alerts(
 @router.post("", response_model=AlertRead, status_code=status.HTTP_201_CREATED)
 async def create_alert(
     payload: AlertCreate,
-    _: User = Depends(get_current_user),
+    _: User = Depends(get_admin_user),
     session: AsyncSession = Depends(get_db_session),
 ) -> AlertRead:
     alert = await alert_service.create_alert(session=session, payload=payload)
