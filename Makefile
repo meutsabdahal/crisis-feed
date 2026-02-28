@@ -4,25 +4,35 @@ DATABASE_URL ?= postgresql+asyncpg://postgres:postgres@localhost:5432/georisk_mo
 JWT_SECRET_KEY ?= dev-local-secret
 COOKIE_SECURE ?= false
 
-.PHONY: backend worker test-backend lint-backend type-backend seed-alerts
+.PHONY: backend worker test-backend lint-backend type-backend seed-alerts migrate migrate-sql dev-backend
 
 backend:
 	DATABASE_URL="$(DATABASE_URL)" JWT_SECRET_KEY="$(JWT_SECRET_KEY)" COOKIE_SECURE="$(COOKIE_SECURE)" \
 	uv run --project backend uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000 --reload
+
+migrate:
+	cd backend && DATABASE_URL="$(DATABASE_URL)" JWT_SECRET_KEY="$(JWT_SECRET_KEY)" \
+	uv run alembic upgrade head
+
+migrate-sql:
+	cd backend && DATABASE_URL="$(DATABASE_URL)" JWT_SECRET_KEY="$(JWT_SECRET_KEY)" \
+	uv run alembic upgrade head --sql > /tmp/georisk_alembic.sql
+
+dev-backend: migrate backend
 
 worker:
 	DATABASE_URL="$(DATABASE_URL)" JWT_SECRET_KEY="$(JWT_SECRET_KEY)" COOKIE_SECURE="$(COOKIE_SECURE)" PYTHONPATH=backend \
 	uv run --project backend python -m app.workers.alerts_ingestion_worker
 
 test-backend:
-	DATABASE_URL="$(DATABASE_URL)" JWT_SECRET_KEY="$(JWT_SECRET_KEY)" COOKIE_SECURE="$(COOKIE_SECURE)" \
-	uv run --project backend pytest
+	cd backend && DATABASE_URL="$(DATABASE_URL)" JWT_SECRET_KEY="$(JWT_SECRET_KEY)" COOKIE_SECURE="$(COOKIE_SECURE)" \
+	uv run pytest
 
 lint-backend:
-	uv run --project backend ruff check backend/app backend/tests
+	cd backend && uv run ruff check app tests
 
 type-backend:
-	uv run --project backend mypy backend/app
+	cd backend && uv run mypy app
 
 seed-alerts:
 	DATABASE_URL="$(DATABASE_URL)" JWT_SECRET_KEY="$(JWT_SECRET_KEY)" COOKIE_SECURE="$(COOKIE_SECURE)" PYTHONPATH=backend \
