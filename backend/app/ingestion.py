@@ -14,40 +14,70 @@ from app.database import SessionLocal
 from app.models import NewsAlert
 
 RSS_FEEDS: tuple[str, ...] = (
-    "https://feeds.reuters.com/reuters/worldNews",
-    "http://rss.cnn.com/rss/edition_world.rss",
     "https://www.aljazeera.com/xml/rss/all.xml",
     "http://feeds.bbci.co.uk/news/world/rss.xml",
     "https://feeds.npr.org/1004/rss.xml",
     "https://www.theguardian.com/world/rss",
     "https://rss.dw.com/rdf/rss-en-world",
+    "https://moxie.foxnews.com/google-publisher/world.xml",  # Fox News world
+    "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",  # NYT world
+    "https://feeds.washingtonpost.com/rss/world",  # Washington Post world
+    "https://www.france24.com/en/rss",  # France 24
 )
 
 DOMAIN_SOURCE_MAP: dict[str, str] = {
-    "reuters.com": "Reuters",
-    "cnn.com": "CNN",
     "aljazeera.com": "Al Jazeera",
     "bbc.co.uk": "BBC",
     "bbc.com": "BBC",
     "npr.org": "NPR",
     "theguardian.com": "The Guardian",
     "dw.com": "DW",
+    "foxnews.com": "Fox News",
+    "nytimes.com": "New York Times",
+    "washingtonpost.com": "Washington Post",
+    "france24.com": "France 24",
+    "reuters.com": "Reuters",
+    "apnews.com": "AP News",
 }
 
 ACTOR_KEYWORDS: tuple[str, ...] = (
     "u.s.",
     "united states",
     "us military",
+    "american",
+    "pentagon",
+    "white house",
+    "trump",
     "iran",
+    "iranian",
     "israel",
+    "israeli",
     "idf",
     "tehran",
     "khamenei",
+    "irgc",
+    "hezbollah",
+    "houthi",
+    "hamas",
+    "russia",
+    "russian",
+    "ukraine",
+    "ukrainian",
+    "nato",
+    "china",
+    "taiwan",
+    "north korea",
+    "syria",
+    "yemen",
+    "gaza",
+    "west bank",
+    "middle east",
 )
 
 CONFLICT_KEYWORDS: tuple[str, ...] = (
     "strike",
     "airstrike",
+    "air strike",
     "missile",
     "drone",
     "attack",
@@ -56,6 +86,32 @@ CONFLICT_KEYWORDS: tuple[str, ...] = (
     "military",
     "operation epic fury",
     "epic fury",
+    "war",
+    "conflict",
+    "bomb",
+    "bombing",
+    "offensive",
+    "invasion",
+    "troops",
+    "deployment",
+    "sanctions",
+    "ceasefire",
+    "cease-fire",
+    "casualties",
+    "killed",
+    "deaths",
+    "weapon",
+    "nuclear",
+    "hostage",
+    "siege",
+    "shelling",
+    "artillery",
+    "airspace",
+    "naval",
+    "warship",
+    "intercept",
+    "retaliate",
+    "tension",
 )
 
 BREAKING_HINTS: tuple[str, ...] = (
@@ -63,9 +119,11 @@ BREAKING_HINTS: tuple[str, ...] = (
     "urgent",
     "strike",
     "escalation",
+    "just in",
+    "developing",
 )
 
-POLL_INTERVAL_SECONDS = 180
+POLL_INTERVAL_SECONDS = 120
 
 _RE_HTML_TAG = re.compile(r"<[^>]+>")
 _RE_WHITESPACE = re.compile(r"\s+")
@@ -175,6 +233,8 @@ async def _fetch_feed(
 
 async def fetch_and_store_alerts() -> int:
     inserted_count = 0
+    # Track URLs added in this run to avoid cross-feed duplicates
+    seen_urls: set[str] = set()
 
     async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
         # Fetch all feeds concurrently
@@ -184,6 +244,9 @@ async def fetch_and_store_alerts() -> int:
         )
 
     async with SessionLocal() as session:
+        # Disable autoflush to prevent UNIQUE constraint errors during SELECT
+        session.autoflush = False
+
         for feed_url, result in zip(RSS_FEEDS, results, strict=True):
             if isinstance(result, BaseException) or result is None:
                 continue
@@ -226,9 +289,9 @@ async def fetch_and_store_alerts() -> int:
             }
 
             for entry, headline, url, summary in candidates:
-                if url in existing_map:
+                if url in existing_map or url in seen_urls:
                     # Backfill description if missing
-                    if not existing_map[url] and summary:
+                    if url in existing_map and not existing_map[url] and summary:
                         stmt = select(NewsAlert).where(NewsAlert.url == url)
                         row = await session.execute(stmt)
                         alert = row.scalar_one_or_none()
@@ -236,6 +299,7 @@ async def fetch_and_store_alerts() -> int:
                             alert.description = summary[:4000]
                     continue
 
+                seen_urls.add(url)
                 source = _resolve_source_name(
                     entry=entry,
                     article_url=url,
