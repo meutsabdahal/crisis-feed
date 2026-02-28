@@ -21,6 +21,7 @@ class Settings(BaseSettings):
         default="georisk:ingestion:alerts",
         alias="ALERT_INGESTION_QUEUE_KEY",
     )
+    alert_events_channel: str = Field(default="georisk:alerts:events", alias="ALERT_EVENTS_CHANNEL")
     alert_ingestion_dead_letter_queue_key: str = Field(
         default="georisk:ingestion:alerts:dlq",
         alias="ALERT_INGESTION_DLQ_KEY",

@@ -14,6 +14,7 @@ from app.core.config import get_settings
 from app.db.database import build_engine, build_session_factory
 from app.db.redis import build_redis_client
 from app.models.models import Alert
+from app.services.realtime_events import publish_alert_event
 
 LOGGER: logging.Logger = logging.getLogger(__name__)
 T = TypeVar("T")
@@ -25,7 +26,7 @@ async def _resolve(value: Awaitable[T] | T) -> T:
     return value
 
 
-async def process_job(session: AsyncSession, job_payload: dict[str, Any]) -> None:
+async def process_job(session: AsyncSession, job_payload: dict[str, Any]) -> Alert:
     alert = Alert(
         severity_level=str(job_payload["severity_level"]),
         region=str(job_payload["region"]),
@@ -35,6 +36,8 @@ async def process_job(session: AsyncSession, job_payload: dict[str, Any]) -> Non
     )
     session.add(alert)
     await session.commit()
+    await session.refresh(alert)
+    return alert
 
 
 async def handle_failed_job(redis: Redis, job_payload: dict[str, Any]) -> None:
@@ -79,7 +82,8 @@ async def run_worker() -> None:
             try:
                 payload = json.loads(raw_payload)
                 async with session_factory() as session:
-                    await process_job(session, payload)
+                    alert = await process_job(session, payload)
+                await publish_alert_event(redis=redis, alert=alert)
                 LOGGER.info("Processed ingestion job %s", payload.get("job_id"))
             except Exception:
                 LOGGER.exception("Failed to process ingestion job payload")
