@@ -4,7 +4,14 @@ DATABASE_URL ?= postgresql+asyncpg://postgres:postgres@localhost:5432/georisk_mo
 JWT_SECRET_KEY ?= dev-local-secret
 COOKIE_SECURE ?= false
 
-.PHONY: backend worker test-backend lint-backend type-backend seed-alerts migrate migrate-sql dev-backend
+.PHONY: backend worker test-backend lint-backend type-backend seed-alerts migrate migrate-sql dev-backend doctor
+
+doctor:
+	@echo "Checking local prerequisites..."
+	@command -v uv >/dev/null 2>&1 && echo "[ok] uv" || (echo "[missing] uv" && exit 1)
+	@command -v docker >/dev/null 2>&1 && echo "[ok] docker" || echo "[warn] docker not found (full stack compose unavailable)"
+	@command -v npm >/dev/null 2>&1 && echo "[ok] npm" || echo "[warn] npm not found (frontend local dev unavailable)"
+	@echo "Done."
 
 backend:
 	DATABASE_URL="$(DATABASE_URL)" JWT_SECRET_KEY="$(JWT_SECRET_KEY)" COOKIE_SECURE="$(COOKIE_SECURE)" \
