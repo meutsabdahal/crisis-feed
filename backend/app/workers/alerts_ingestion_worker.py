@@ -37,6 +37,30 @@ async def process_job(session: AsyncSession, job_payload: dict[str, Any]) -> Non
     await session.commit()
 
 
+async def handle_failed_job(redis: Redis, job_payload: dict[str, Any]) -> None:
+    settings = get_settings()
+    retry_count = int(job_payload.get("retry_count", 0)) + 1
+    job_payload["retry_count"] = retry_count
+
+    if retry_count <= settings.alert_ingestion_max_retries:
+        await _resolve(redis.rpush(settings.alert_ingestion_queue_key, json.dumps(job_payload)))
+        LOGGER.warning(
+            "Requeued failed ingestion job %s (retry %s/%s)",
+            job_payload.get("job_id"),
+            retry_count,
+            settings.alert_ingestion_max_retries,
+        )
+        return
+
+    await _resolve(
+        redis.rpush(
+            settings.alert_ingestion_dead_letter_queue_key,
+            json.dumps(job_payload),
+        )
+    )
+    LOGGER.error("Moved ingestion job %s to DLQ", job_payload.get("job_id"))
+
+
 async def run_worker() -> None:
     settings = get_settings()
     redis: Redis = build_redis_client()
@@ -59,6 +83,11 @@ async def run_worker() -> None:
                 LOGGER.info("Processed ingestion job %s", payload.get("job_id"))
             except Exception:
                 LOGGER.exception("Failed to process ingestion job payload")
+                if isinstance(raw_payload, str):
+                    failed_payload = json.loads(raw_payload)
+                else:
+                    failed_payload = json.loads(str(raw_payload))
+                await handle_failed_job(redis=redis, job_payload=failed_payload)
     finally:
         await redis.aclose()
         await engine.dispose()

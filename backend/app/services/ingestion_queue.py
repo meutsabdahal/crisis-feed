@@ -28,6 +28,7 @@ async def enqueue_alert_ingestion(
 
     message = {
         "job_id": job_id,
+        "retry_count": 0,
         "severity_level": payload.severity_level,
         "region": payload.region,
         "description": payload.description,

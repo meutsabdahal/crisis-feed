@@ -21,6 +21,11 @@ class Settings(BaseSettings):
         default="georisk:ingestion:alerts",
         alias="ALERT_INGESTION_QUEUE_KEY",
     )
+    alert_ingestion_dead_letter_queue_key: str = Field(
+        default="georisk:ingestion:alerts:dlq",
+        alias="ALERT_INGESTION_DLQ_KEY",
+    )
+    alert_ingestion_max_retries: int = Field(default=3, alias="ALERT_INGESTION_MAX_RETRIES")
 
     jwt_secret_key: str = Field(alias="JWT_SECRET_KEY")
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
