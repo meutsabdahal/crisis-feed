@@ -18,6 +18,13 @@ class FakeRedis:
     async def ping(self) -> bool:
         return True
 
+    async def llen(self, key: str) -> int:
+        if key == "georisk:ingestion:alerts":
+            return 2
+        if key == "georisk:ingestion:alerts:dlq":
+            return 1
+        return 0
+
 
 async def fake_db_session() -> AsyncIterator[FakeSession]:
     yield FakeSession()
@@ -71,3 +78,18 @@ def test_alert_creation_requires_auth() -> None:
         )
 
     assert response.status_code == 401
+
+
+def test_system_metrics_endpoint() -> None:
+    with _build_test_client() as client:
+        response = client.get("/api/v1/system/metrics")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "ok"
+    assert payload["database"] == "reachable"
+    assert payload["redis"] == "reachable"
+    assert payload["queues"]["ingestion"]["name"] == "georisk:ingestion:alerts"
+    assert payload["queues"]["ingestion"]["depth"] == 2
+    assert payload["queues"]["dead_letter"]["name"] == "georisk:ingestion:alerts:dlq"
+    assert payload["queues"]["dead_letter"]["depth"] == 1
