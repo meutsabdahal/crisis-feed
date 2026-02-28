@@ -3,7 +3,7 @@ SHELL := /bin/bash
 BACKEND_PORT ?= 8000
 FRONTEND_PORT ?= 3000
 
-.PHONY: doctor backend frontend dev lint-backend type-backend lint-frontend type-frontend build-frontend
+.PHONY: doctor backend frontend dev lint-backend type-backend lint-frontend type-frontend build-frontend clean
 
 doctor:
 	@echo "Checking local prerequisites..."
@@ -34,3 +34,8 @@ type-frontend:
 
 build-frontend:
 	cd frontend && npm run build
+
+clean:
+	rm -rf frontend/.next frontend/tsconfig.tsbuildinfo
+	find backend -type d -name "__pycache__" -prune -exec rm -rf {} +
+	rm -f crisis_feed.db-wal crisis_feed.db-shm backend/crisis_feed.db-wal backend/crisis_feed.db-shm

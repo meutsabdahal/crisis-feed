@@ -1,12 +1,10 @@
-"use client";
-
-import { useEffect, useMemo, useState } from "react";
+import Script from "next/script";
 import { Globe, Radio, TriangleAlert } from "lucide-react";
 
-import { fetchAlerts } from "@/lib/api";
 import type { NewsAlert } from "@/lib/types";
 
-const POLL_INTERVAL_MS = 15_000;
+const REFRESH_INTERVAL_MS = 15_000;
+const DEFAULT_API_BASE_URL = "http://127.0.0.1:8000";
 
 function formatSourceLabel(source: string): string {
     if (!source.startsWith("http")) {
@@ -34,54 +32,31 @@ function makeExcerpt(description: string | null): string | null {
     return `${description.slice(0, 277)}...`;
 }
 
-export default function HomePage() {
-    const [alerts, setAlerts] = useState<NewsAlert[]>([]);
-    const [isLoading, setIsLoading] = useState<boolean>(true);
-    const [error, setError] = useState<string | null>(null);
-    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+async function getAlerts(): Promise<NewsAlert[]> {
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? DEFAULT_API_BASE_URL;
 
-    useEffect(() => {
-        let isCancelled = false;
-
-        const loadAlerts = async (): Promise<void> => {
-            try {
-                const latest = await fetchAlerts();
-                if (!isCancelled) {
-                    setAlerts(latest);
-                    setError(null);
-                    setLastUpdated(new Date());
-                }
-            } catch {
-                if (!isCancelled) {
-                    setError("Failed to fetch alerts.");
-                }
-            } finally {
-                if (!isCancelled) {
-                    setIsLoading(false);
-                }
-            }
-        };
-
-        void loadAlerts();
-        const intervalId = window.setInterval(() => {
-            void loadAlerts();
-        }, POLL_INTERVAL_MS);
-
-        return () => {
-            isCancelled = true;
-            window.clearInterval(intervalId);
-        };
-    }, []);
-
-    const updatedText = useMemo(() => {
-        if (!lastUpdated) {
-            return "never";
+    try {
+        const response = await fetch(`${apiBaseUrl}/api/alerts`, { cache: "no-store" });
+        if (!response.ok) {
+            return [];
         }
-        return lastUpdated.toLocaleTimeString();
-    }, [lastUpdated]);
 
-    const breakingCount = useMemo(() => alerts.filter((item) => item.is_breaking).length, [alerts]);
-    const sourcesCount = useMemo(() => new Set(alerts.map((item) => formatSourceLabel(item.source))).size, [alerts]);
+        const payload: unknown = await response.json();
+        if (!Array.isArray(payload)) {
+            return [];
+        }
+
+        return payload as NewsAlert[];
+    } catch {
+        return [];
+    }
+}
+
+export default async function HomePage() {
+    const alerts = await getAlerts();
+    const updatedText = new Date().toLocaleTimeString();
+    const breakingCount = alerts.filter((item) => item.is_breaking).length;
+    const sourcesCount = new Set(alerts.map((item) => formatSourceLabel(item.source))).size;
 
     return (
         <main className="mx-auto min-h-screen max-w-6xl px-4 py-8 md:px-8">
@@ -107,14 +82,12 @@ export default function HomePage() {
                 </div>
             </header>
 
-            {error ? (
-                <p className="mb-4 rounded-md border border-red-700 bg-red-950/40 px-3 py-2 text-sm text-red-200">{error}</p>
-            ) : null}
+            <Script id="feed-auto-refresh" strategy="afterInteractive">
+                {`window.setTimeout(() => window.location.reload(), ${REFRESH_INTERVAL_MS});`}
+            </Script>
 
             <section className="space-y-3">
-                {isLoading ? (
-                    <p className="rounded-md border border-slate-800 bg-slate-900/50 p-4 text-sm text-slate-400">Loading feed...</p>
-                ) : alerts.length === 0 ? (
+                {alerts.length === 0 ? (
                     <p className="rounded-md border border-slate-800 bg-slate-900/50 p-4 text-sm text-slate-400">No matching alerts yet.</p>
                 ) : (
                     alerts.map((alert) => (
