@@ -15,7 +15,7 @@ def build_redis_client() -> Redis:
         encoding="utf-8",
         decode_responses=True,
         socket_connect_timeout=5,
-        socket_timeout=5,
+        socket_timeout=None,
         retry_on_timeout=True,
     )
     return cast(Redis, redis_client)
